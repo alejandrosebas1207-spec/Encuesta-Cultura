@@ -664,13 +664,15 @@ async function loadSectors() {
           iconAnchor: [7, 7]
         });
         const marker = L.marker(latlng, { icon, keyboard: false });
+        const placeName = titleCase(p.n || '');
+        const labelName = placeName.toLowerCase().startsWith('centro de ') ? titleCase(p.p) : placeName;
         marker.bindPopup(`
           <div class="pop-eyebrow">Sector de referencia</div>
-          <div class="pop-name">${escapeHtml(titleCase(p.p || ''))}</div>
-          <div class="pop-parr">${escapeHtml(p.n || '')}</div>
+          <div class="pop-name">${escapeHtml(placeName)}</div>
+          <div class="pop-parr">Parroquia ${escapeHtml(titleCase(p.p || ''))}</div>
           <div class="pop-coords">${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}</div>
         `, { closeButton: true, maxWidth: 250 });
-        sectorItems.push({ marker, name: titleCase(p.p) || titleCase(p.n), tooltipOpen: false });
+        sectorItems.push({ marker, name: labelName, tooltipOpen: false });
         return marker;
       }
     });
