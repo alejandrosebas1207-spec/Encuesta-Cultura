@@ -867,67 +867,9 @@ function restoreState() {
 }
 
 /* ================================================================
-   BÚSQUEDA
-   ================================================================ */
-function initSearch() {
-  const input = document.getElementById('search');
-  const results = document.getElementById('search-results');
-
-  let searchTimer = null;
-  input.addEventListener('input', () => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
-      const q = input.value.trim().toLowerCase();
-      if (q.length < 2) {
-        results.classList.remove('show');
-        results.innerHTML = '';
-        return;
-      }
-      const matches = allPoints.filter(p => p.nombre.toLowerCase().includes(q)).slice(0, 12);
-      results.innerHTML = '';
-      if (matches.length === 0) {
-        results.innerHTML = '<div class="sr-empty">Sin resultados</div>';
-      } else {
-        const frag = document.createDocumentFragment();
-        matches.forEach(p => {
-          const layer = LAYER_DEFS[p.layer];
-          const meta = layer.cats[p.tipo];
-          const el = document.createElement('div');
-          el.className = 'sr-item';
-          el.innerHTML = `
-            <span class="sr-shape">${shapeIconHtml(layer.shape, meta.hex, 10)}</span>
-            <span class="sr-name">${escapeHtml(p.nombre)}</span>
-            <span class="sr-layer">${layer.title.split(' ')[0]}</span>
-          `;
-          el.addEventListener('click', () => {
-            map.setView([p.lat, p.lon], 17, { animate: true });
-            const found = markerIndex.find(item => item.p === p);
-            if (found) setTimeout(() => found.marker.openPopup(), 350);
-            results.classList.remove('show');
-            input.value = p.nombre;
-            // En móvil, cerrar la hoja inferior para que el mapa quede visible
-            if (window.innerWidth <= 760) collapseSidebar();
-          });
-          frag.appendChild(el);
-        });
-        results.appendChild(frag);
-      }
-      results.classList.add('show');
-    }, 120);
-  });
-
-  input.addEventListener('focus', () => {
-    if (results.innerHTML) results.classList.add('show');
-  });
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.search-wrap')) results.classList.remove('show');
-  });
-}
-
-/* ================================================================
    COLAPSAR SIDEBAR
    ================================================================ */
-// Cierra el panel lateral (usado por búsqueda y filtro de parroquia en móvil)
+// Cierra el panel lateral (filtro de parroquia y ubicación en móvil)
 function collapseSidebar() {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar || sidebar.classList.contains('collapsed')) return;
@@ -1126,7 +1068,6 @@ function initTour() {
 document.addEventListener('DOMContentLoaded', () => {
   initMap();
   initSidebarToggle();
-  initSearch();
   initChipActions();
   initTheme();
   initSectors();
