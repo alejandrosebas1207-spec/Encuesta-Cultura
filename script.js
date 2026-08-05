@@ -7,6 +7,9 @@ const DATA_FILES = {
   atractivos: 'data/Atractivo_Turistico.geojson'
 };
 
+const PARROQUIAS_FILE = 'data/parroquias_dmq.geojson';
+const PARROQUIAS_LOOKUP_FILE = 'data/parroquias_lookup.json';
+
 // Definición de capas y categorías (se llenan con los datos cargados)
 const LAYER_DEFS = {
   espacios: {
@@ -67,6 +70,12 @@ let categoryState = {};      // clave: "layerKey::tipo" -> boolean
 let labelsOn = false;
 let map, baseLight, baseSat, satRoads, satLabels;
 
+// Parroquias: geometrías para dibujar y estado del filtro
+let parroquiasGeo = null;       // FeatureCollection de parroquias (para dibujar)
+let parroquiasLayer = null;     // L.geoJSON añadido al mapa
+let parroquiaLookup = {};       // nombre -> parroquia (join espacial precalculado)
+let parroquiaSel = '';          // parroquia seleccionada en el filtro ('' = todas)
+
 // Funciones auxiliares
 function resolveColor(v) {
   if (!v.startsWith('var(')) return v;
@@ -76,6 +85,161 @@ function resolveColor(v) {
 function escapeHtml(s) {
   if (!s) return '';
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/* ================================================================
+   PARROQUIAS: carga, asignación y capa en el mapa
+   ================================================================ */
+function loadParroquias() {
+  return Promise.all([
+    fetch(PARROQUIAS_FILE).then(r => r.json()),
+    fetch(PARROQUIAS_LOOKUP_FILE).then(r => r.json())
+  ]).then(([geo, lookup]) => {
+    parroquiasGeo = geo;
+    parroquiaLookup = lookup;
+    return geo;
+  });
+}
+
+function normalizeName(s) {
+  return String(s).trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+// Asigna la parroquia a cada punto usando el lookup precalculado (join por nombre)
+function assignParroquias() {
+  Object.values(LAYER_DEFS).forEach(layer => {
+    const key = layer.key === 'espacios' ? 'Espacios_Culturales' :
+                layer.key === 'infra' ? 'Infraestructura_Cultural' : 'Atractivo_Turistico';
+    const table = parroquiaLookup[key] || {};
+    layer.points.forEach(p => {
+      const parr = table[normalizeName(p.nombre)];
+      p.parroquia = parr && parr !== '__sin_parroquia__' ? parr : '';
+    });
+  });
+}
+
+// Dibuja los límites de parroquias sobre el mapa
+function buildParroquiaLayer() {
+  if (!parroquiasGeo || parroquiasLayer) return;
+
+  const line = resolveColor('var(--parr-line)');
+  const hover = resolveColor('var(--parr-line-hover)');
+  const fill = resolveColor('var(--parr-fill)');
+
+  parroquiasLayer = L.geoJSON(parroquiasGeo, {
+    style: () => ({
+      color: line,
+      weight: 1.6,
+      opacity: 0.85,
+      fillColor: fill,
+      fillOpacity: 0.06,
+      interactive: true
+    }),
+    onEachFeature: (feature, layer) => {
+      const name = feature.properties.dpa_despar;
+      layer.on({
+        click: () => {
+          const sel = document.getElementById('parroquia-filter');
+          if (sel) sel.value = name;
+          setParroquia(name);
+        },
+        mouseover: () => {
+          layer.setStyle({
+            weight: 2.6,
+            fillOpacity: 0.16,
+            color: hover
+          });
+          layer.bringToFront();
+        },
+        mouseout: () => {
+          if (name === parroquiaSel) {
+            layer.setStyle({
+              weight: 3.4,
+              color: hover,
+              fillColor: resolveColor('var(--parr-fill-active)'),
+              fillOpacity: 0.22
+            });
+            layer.bringToFront();
+          } else {
+            parroquiasLayer.resetStyle(layer);
+          }
+        }
+      });
+      // Etiqueta al pasar el cursor (solo escritorio)
+      if (window.matchMedia('(hover: hover)').matches) {
+        layer.bindTooltip(name, { direction: 'center', className: 'parr-tip' });
+      }
+    }
+  });
+  parroquiasLayer.addTo(map);
+}
+
+// Construye el <select> con las parroquias que tienen al menos un punto
+function buildParroquiaSelect() {
+  const sel = document.getElementById('parroquia-filter');
+  if (!sel) return;
+
+  // Idempotente: quitar opciones previas (conserva la primera "Todas las parroquias")
+  [...sel.querySelectorAll('option:not(:first-child)')].forEach(o => o.remove());
+
+  const counts = {};
+  allPoints.forEach(p => {
+    const key = p.parroquia || '__sin__';
+    counts[key] = (counts[key] || 0) + 1;
+  });
+
+  const options = Object.keys(counts)
+    .filter(k => k !== '__sin__')
+    .sort((a, b) => a.localeCompare(b, 'es'))
+    .map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)} (${counts[k]})</option>`);
+
+  if (counts['__sin__']) {
+    options.push(`<option value="__sin__">Sin parroquia (${counts['__sin__']})</option>`);
+  }
+
+  sel.insertAdjacentHTML('beforeend', options.join(''));
+
+  sel.addEventListener('change', () => {
+    setParroquia(sel.value === '__sin__' ? '__sin__' : sel.value);
+  });
+}
+
+// Devuelve true si el punto pasa el filtro de parroquia
+function passesParroquiaFilter(p) {
+  if (!parroquiaSel) return true;
+  const pkey = p.parroquia || '__sin__';
+  return pkey === parroquiaSel;
+}
+
+// Aplica la selección de parroquia: resalta el polígono y filtra marcadores
+function setParroquia(name) {
+  parroquiaSel = name || '';
+  const sel = document.getElementById('parroquia-filter');
+  if (sel && sel.value !== parroquiaSel) sel.value = parroquiaSel;
+
+  if (parroquiasLayer) {
+    parroquiasLayer.eachLayer(l => {
+      const lname = l.feature.properties.dpa_despar;
+      if (lname === parroquiaSel) {
+        l.setStyle({
+          weight: 3.4,
+          color: resolveColor('var(--parr-line-active)'),
+          fillColor: resolveColor('var(--parr-fill-active)'),
+          fillOpacity: 0.22
+        });
+        l.bringToFront();
+      } else {
+        parroquiasLayer.resetStyle(l);
+      }
+    });
+  }
+
+  if (parroquiaSel) {
+    const feat = parroquiasGeo.features.find(f => f.properties.dpa_despar === parroquiaSel);
+    if (feat) map.fitBounds(L.geoJSON(feat).getBounds(), { padding: [60, 60], maxZoom: 15 });
+  }
+  localStorage.setItem('parroquiaSel', JSON.stringify(parroquiaSel));
+  refreshMarkers();
 }
 
 function shapeIconHtml(shape, hex, size = 12) {
@@ -244,10 +408,11 @@ function initMap() {
 async function loadData() {
   const loadingEl = document.getElementById('loading');
   try {
-    const [espacios, infra, atractivos] = await Promise.all([
+    const [espacios, infra, atractivos, parroquiasPromise] = await Promise.all([
       fetch(DATA_FILES.espacios).then(r => r.json()),
       fetch(DATA_FILES.infra).then(r => r.json()),
-      fetch(DATA_FILES.atractivos).then(r => r.json())
+      fetch(DATA_FILES.atractivos).then(r => r.json()),
+      loadParroquias()
     ]);
 
     // Función para procesar un FeatureCollection y extraer puntos
@@ -304,6 +469,11 @@ async function loadData() {
     Object.values(LAYER_DEFS).forEach(layer => {
       allPoints = allPoints.concat(layer.points);
     });
+
+    // Asignar parroquia a cada punto y preparar filtro y capa de límites
+    assignParroquias();
+    buildParroquiaLayer();
+    buildParroquiaSelect();
 
     // Inicializar estado de capas y categorías
     Object.keys(LAYER_DEFS).forEach(key => {
@@ -508,6 +678,7 @@ function createMarkers() {
         <div class="pop-eyebrow">${layer.title}</div>
         <div class="pop-cat">${shapeIconHtml(layer.shape, meta.hex, 9)} ${meta.label}</div>
         <div class="pop-name">${escapeHtml(p.nombre)}</div>
+        ${p.parroquia ? `<div class="pop-parr">📍 ${escapeHtml(p.parroquia)}</div>` : ''}
         <div class="pop-coords">${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}</div>
         <div class="pop-link-row">
           <a href="https://www.google.com/maps?q=${p.lat},${p.lon}" target="_blank" class="pop-link">Abrir en Google Maps →</a>
@@ -548,7 +719,9 @@ function refreshMarkers() {
     layer.cluster.clearLayers();
     if (!layerMasterState[layer.key]) return;
     const toAdd = markerIndex
-      .filter(item => item.layer === layer && categoryState[layer.key + '::' + item.p.tipo])
+      .filter(item => item.layer === layer &&
+        categoryState[layer.key + '::' + item.p.tipo] &&
+        passesParroquiaFilter(item.p))
       .map(item => item.marker);
     layer.cluster.addLayers(toAdd);
   });
@@ -564,7 +737,7 @@ function updateLabels() {
   markerIndex.forEach(item => {
     const sk = item.layer.key + '::' + item.p.tipo;
     const meta = item.layer.cats[item.p.tipo];
-    const active = layerMasterState[item.layer.key] && categoryState[sk];
+    const active = layerMasterState[item.layer.key] && categoryState[sk] && passesParroquiaFilter(item.p);
     const shouldLabel = active && labelsOn && zoom >= meta.labelZoom;
     if (shouldLabel && !item.tooltipOpen) {
       item.marker.bindTooltip(item.p.nombre, {
@@ -588,7 +761,7 @@ function updateVisibleCount() {
   let visible = 0;
   markerIndex.forEach(item => {
     const sk = item.layer.key + '::' + item.p.tipo;
-    if (layerMasterState[item.layer.key] && categoryState[sk]) visible++;
+    if (layerMasterState[item.layer.key] && categoryState[sk] && passesParroquiaFilter(item.p)) visible++;
   });
   document.getElementById('stats-visible').textContent = visible.toLocaleString('es-EC');
 }
@@ -622,6 +795,13 @@ function restoreState() {
       }
     }
   });
+
+  // Restaurar parroquia seleccionada
+  const parrSaved = localStorage.getItem('parroquiaSel');
+  if (parrSaved !== null) {
+    parroquiaSel = JSON.parse(parrSaved);
+    if (parroquiaSel) setParroquia(parroquiaSel);
+  }
 
   // Restaurar toggle etiquetas
   const labelsSaved = localStorage.getItem('labelsOn');
