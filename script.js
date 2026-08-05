@@ -95,7 +95,11 @@ function initMap() {
     zoomControl: false,
     minZoom: 11,
     maxZoom: 19,
-    preferCanvas: true    // renderiza vectores en canvas: mucho más fluido en gama baja/móvil
+    preferCanvas: true,      // renderiza vectores en canvas: mucho más fluido en gama baja/móvil
+    zoomSnap: 0.25,          // permite niveles de zoom fraccionarios → transición más suave
+    zoomDelta: 0.5,          // cuánto avanza cada clic en +/- o cada doble clic
+    wheelPxPerZoomLevel: 200, // más scroll necesario por nivel → la rueda/trackpad ya no "salta"
+    wheelDebounceTime: 100   // espera un poco entre pasos de zoom en vez de encadenarlos de golpe
   }).setView([-0.19, -78.49], 12);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
   L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(map);
