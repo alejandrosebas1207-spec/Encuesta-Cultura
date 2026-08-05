@@ -862,7 +862,15 @@ function toggleDone(key) {
   // Badge ✓ en el marcador (un solo setIcon, costo mínimo)
   item.marker.setIcon(makePointIcon(item.layer, item.p));
   updateProgress();
-  if (onlyPending) refreshMarkers();
+  if (onlyPending) {
+    // No esconder el punto en el momento: al quitarlo del clúster Leaflet cierra
+    // el popup y perderías la oportunidad de desmarcarlo. Se oculta al cerrar.
+    if (item.marker.isPopupOpen()) {
+      item.marker.once('popupclose', () => refreshMarkers());
+    } else {
+      refreshMarkers();
+    }
+  }
   const btn = document.querySelector('.leaflet-popup .pop-done');
   if (btn && btn.dataset.dk === key) syncDoneBtn(btn, item.p);
 }
