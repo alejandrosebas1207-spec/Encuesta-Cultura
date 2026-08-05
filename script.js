@@ -69,6 +69,17 @@ let markerIndex = [];
 let categoryState = {};      // clave: "layerKey::tipo" -> boolean
 let labelsOn = false;
 let map, baseProviders, baseLayer = null, baseTheme = 'light', baseIdx = 0, baseFails = 0, baseFailTimer = null;
+let userLoc = null; // última ubicación conocida del encuestador
+
+// Distancia en km entre dos coordenadas (fórmula de Haversine)
+function distKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
 // Parroquias: geometrías para dibujar y estado del filtro
 let parroquiasGeo = null;       // FeatureCollection de parroquias (para dibujar)
 let parroquiasLayer = null;     // L.geoJSON añadido al mapa
@@ -200,6 +211,8 @@ function buildParroquiaSelect() {
 
   sel.addEventListener('change', () => {
     setParroquia(sel.value === '__sin__' ? '__sin__' : sel.value);
+    // En móvil, cerrar el panel para ver el mapa completo (ya centrado en la parroquia)
+    if (window.innerWidth <= 760) collapseSidebar();
   });
 }
 
@@ -331,6 +344,7 @@ function initMap() {
     map.locate({ setView: true, maxZoom: 16 });
   });
   map.on('locationfound', (e) => {
+    userLoc = e.latlng;
     const accent = resolveColor('var(--gold)');
     L.circleMarker(e.latlng, { radius: 6, color: accent, fillColor: accent, fillOpacity: 0.8 })
       .addTo(map)
@@ -340,8 +354,16 @@ function initMap() {
     alert('No se pudo obtener tu ubicación. Asegúrate de dar permisos de geolocalización.');
   });
 
-  // Botón "Copiar coords" dentro de los popups
+  // Botón "Copiar coords" y distancia "a X km" dentro de los popups
   map.on('popupopen', () => {
+    // Distancia desde la ubicación del encuestador (si ya la obtuvo)
+    const distEl = document.querySelector('.leaflet-popup .pop-dist');
+    if (distEl && userLoc) {
+      const d = distKm(userLoc.lat, userLoc.lng, parseFloat(distEl.dataset.lat), parseFloat(distEl.dataset.lon));
+      distEl.textContent = d < 1
+        ? `📍 A ${Math.round(d * 1000)} m de ti`
+        : `📍 A ${d.toFixed(1)} km de ti`;
+    }
     document.querySelectorAll('.pop-copy').forEach(btn => {
       if (btn.dataset.bound) return;
       btn.dataset.bound = '1';
@@ -579,11 +601,12 @@ function createMarkers() {
     });
 
     // Crear marcadores
+    const isTouch = window.matchMedia('(pointer: coarse)').matches;
     layer.points.forEach(p => {
       const meta = layer.cats[p.tipo];
       if (!meta) return; // seguridad
       const shape = layer.shape;
-      const size = shape === 'pin' ? 24 : 16;
+      const size = shape === 'pin' ? (isTouch ? 28 : 24) : (isTouch ? 19 : 16);
       const icon = L.divIcon({
         html: `<div class="mk-wrap mk-${shape}" style="--mk-color:${meta.hex}">
           <span class="mk-shape"></span>
@@ -599,8 +622,9 @@ function createMarkers() {
         <div class="pop-name">${escapeHtml(p.nombre)}</div>
         ${p.parroquia ? `<div class="pop-parr">📍 ${escapeHtml(p.parroquia)}</div>` : ''}
         <div class="pop-coords">${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}</div>
+        <div class="pop-dist" data-lat="${p.lat}" data-lon="${p.lon}"></div>
         <div class="pop-link-row">
-          <a href="https://www.google.com/maps?q=${p.lat},${p.lon}" target="_blank" class="pop-link">Abrir en Google Maps →</a>
+          <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}" target="_blank" rel="noopener" class="pop-link">🧭 Cómo llegar →</a>
           <button class="pop-copy" data-copy="${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}">Copiar coords</button>
         </div>
       `, { closeButton: true, maxWidth: 260 });
@@ -662,6 +686,10 @@ async function loadSectors() {
           <div class="pop-name">${escapeHtml(placeName)}</div>
           <div class="pop-parr">Parroquia ${escapeHtml(titleCase(p.p || ''))}</div>
           <div class="pop-coords">${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}</div>
+          <div class="pop-dist" data-lat="${latlng.lat}" data-lon="${latlng.lng}"></div>
+          <div class="pop-link-row">
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${latlng.lat},${latlng.lng}" target="_blank" rel="noopener" class="pop-link">🧭 Cómo llegar →</a>
+          </div>
         `, { closeButton: true, maxWidth: 250 });
         sectorItems.push({ marker, name: labelName, tooltipOpen: false });
         return marker;
@@ -853,16 +881,7 @@ function initSearch() {
             results.classList.remove('show');
             input.value = p.nombre;
             // En móvil, cerrar la hoja inferior para que el mapa quede visible
-            if (window.innerWidth <= 760) {
-              const sidebar = document.getElementById('sidebar');
-              if (!sidebar.classList.contains('collapsed')) {
-                sidebar.classList.add('collapsed');
-                const btn = document.getElementById('sb-toggle');
-                if (btn) btn.setAttribute('aria-expanded', 'false');
-                document.getElementById('backdrop').classList.remove('show');
-                setTimeout(() => map.invalidateSize(), 340);
-              }
-            }
+            if (window.innerWidth <= 760) collapseSidebar();
           });
           frag.appendChild(el);
         });
@@ -883,6 +902,18 @@ function initSearch() {
 /* ================================================================
    COLAPSAR SIDEBAR
    ================================================================ */
+// Cierra el panel lateral (usado por búsqueda y filtro de parroquia en móvil)
+function collapseSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar || sidebar.classList.contains('collapsed')) return;
+  sidebar.classList.add('collapsed');
+  const btn = document.getElementById('sb-toggle');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+  const backdrop = document.getElementById('backdrop');
+  if (backdrop) backdrop.classList.remove('show');
+  setTimeout(() => map.invalidateSize(), 340);
+}
+
 function initSidebarToggle() {
   const sidebar = document.getElementById('sidebar');
   const btn = document.getElementById('sb-toggle');
@@ -896,11 +927,13 @@ function initSidebarToggle() {
     backdrop.classList.toggle('show', isMobileQuery.matches && !collapsed);
   }
 
-  btn.addEventListener('click', () => {
+  function toggleSidebar() {
     sidebar.classList.toggle('collapsed');
     syncCollapse();
     setTimeout(() => map.invalidateSize(), 340);
-  });
+  }
+
+  btn.addEventListener('click', toggleSidebar);
 
   backdrop.addEventListener('click', () => {
     sidebar.classList.add('collapsed');

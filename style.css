@@ -665,6 +665,12 @@ html.dark .sec-tip {
   display: inline-block;
   margin-top: 6px;
 }
+.pop-dist {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cs-red);
+  margin-top: 6px;
+}
 .pop-link-row {
   display: flex;
   align-items: center;
@@ -783,25 +789,28 @@ html.dark .sec-tip {
   height: 100%;
   border-radius: 50%;
   background: var(--surface);
-  border: 2px solid var(--mc-color);
+  border: 3px solid var(--mc-color);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 3px 10px rgba(52,46,34,0.25);
+  box-shadow: 0 0 0 2px #fff, 0 4px 14px rgba(23,21,15,0.35);
   transition: transform 0.15s;
+}
+html.dark .mc-bubble {
+  box-shadow: 0 0 0 2px #18181B, 0 4px 14px rgba(0,0,0,0.6);
 }
 .mc-bubble::before {
   content: '';
   position: absolute;
-  inset: -7px;
+  inset: -9px;
   border-radius: 50%;
   border: 2px dashed var(--mc-color);
-  opacity: 0.5;
+  opacity: 0.45;
 }
 .mc-bubble span {
-  font-family: 'Poppins', monospace;
+  font-family: 'Poppins', sans-serif;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--ink);
 }
 .mc-wrap:hover .mc-bubble { transform: scale(1.08); }
