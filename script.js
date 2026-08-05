@@ -310,9 +310,10 @@ function initMap() {
     if (el) el.textContent = 'lat —, lon —';
   });
 
-  // Mapa base: imagen satelital de Esri + capas de calles y nombres
-  baseSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    attribution: 'Tiles &copy; Esri',
+  // Mapa base: imagen satelital de Esri World Imagery "Clarity" (imágenes más
+  // recientes de Maxar, tiles públicos sin API key) + capas de calles y nombres
+  baseSat = L.tileLayer('https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Imagery &copy; Esri (Clarity)',
     maxZoom: 20,
     maxNativeZoom: 19
   });
