@@ -191,17 +191,19 @@ body {
   background: none;
   border: none;
 }
-.sec-dot {
-  display: block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--sec-color, #5A3D8A);
-  border: 2px solid #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+.sec-pin {
+  fill: var(--cs-red);
+  stroke: #fff;
+  stroke-width: 1.2;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
 }
-html.dark .sec-dot { border-color: #18181B; }
-html.dark .sec-dot { background: #8B69C2; }
+.sec-pin-dot {
+  fill: #fff;
+}
+html.dark .sec-pin {
+  fill: var(--cs-red-bright);
+  stroke: #18181B;
+}
 .sec-tip {
   background: transparent !important;
   border: none !important;

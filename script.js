@@ -658,10 +658,10 @@ async function loadSectors() {
       pointToLayer: (feature, latlng) => {
         const p = feature.properties || {};
         const icon = L.divIcon({
-          html: '<span class="sec-dot"></span>',
+          html: '<svg width="16" height="22" viewBox="0 0 16 22" xmlns="http://www.w3.org/2000/svg"><path class="sec-pin" d="M8 1C4.4 1 1.5 3.9 1.5 7.5c0 5 6.5 13.5 6.5 13.5s6.5-8.5 6.5-13.5C14.5 3.9 11.6 1 8 1z"/><circle class="sec-pin-dot" cx="8" cy="7.5" r="2.6"/></svg>',
           className: 'sec-icon',
-          iconSize: [14, 14],
-          iconAnchor: [7, 7]
+          iconSize: [16, 22],
+          iconAnchor: [8, 21]
         });
         const marker = L.marker(latlng, { icon, keyboard: false });
         const placeName = titleCase(p.n || '');
