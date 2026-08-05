@@ -1,5 +1,6 @@
 /* ========== VARIABLES — Identidad Clima Social ========== */
 :root {
+  color-scheme: light;
   /* Colores de marca (extraídos del logo) */
   --cs-red: #C23B49;
   --cs-teal: #4F7E90;
@@ -27,6 +28,9 @@
   --ink: #322D24;
   --ink-dim: #6E6656;
   --muted: #9C9484;
+
+  /* Mapa */
+  --map-bg: #E9E4D8;
 
   /* Límites de parroquias en el mapa */
   --parr-line: rgba(79,126,144,0.55);
@@ -56,6 +60,76 @@
 
   --c-atr-cult: #B8862E;
   --c-atr-nat: #4A8259;
+}
+
+/* ===== Modo oscuro ===== */
+/* Forzado por el toggle del usuario (clase .dark en <html>) */
+html.dark {
+  color-scheme: dark;
+  --bg-app: #16140F;
+  --surface: #1E1B15;
+  --surface-alt: #262218;
+  --surface-hover: #312C20;
+  --stone-line: rgba(240,235,222,0.09);
+  --stone-line-strong: rgba(240,235,222,0.18);
+  --ink: #EFE9DC;
+  --ink-dim: #B6AC97;
+  --muted: #857C68;
+  --map-bg: #14120D;
+  --cs-orange-deep: #F0A200;   /* en oscuro el naranja claro lee mejor */
+  --cs-orange-wash: rgba(240,162,0,0.20);
+  --cs-teal-wash: rgba(79,126,144,0.24);
+  --parr-line: rgba(130,180,200,0.6);
+  --parr-line-hover: #7FB4C8;
+  --parr-line-active: #7FB4C8;
+  --parr-fill: #7FB4C8;
+  --parr-fill-active: rgba(127,180,200,0.28);
+}
+
+/* Sigue la preferencia del sistema (solo si el usuario no forzó tema) */
+@media (prefers-color-scheme: dark) {
+  html:not(.light) {
+    color-scheme: dark;
+    --bg-app: #16140F;
+    --surface: #1E1B15;
+    --surface-alt: #262218;
+    --surface-hover: #312C20;
+    --stone-line: rgba(240,235,222,0.09);
+    --stone-line-strong: rgba(240,235,222,0.18);
+    --ink: #EFE9DC;
+    --ink-dim: #B6AC97;
+    --muted: #857C68;
+    --map-bg: #14120D;
+    --cs-orange-deep: #F0A200;
+    --cs-orange-wash: rgba(240,162,0,0.20);
+    --cs-teal-wash: rgba(79,126,144,0.24);
+    --parr-line: rgba(130,180,200,0.6);
+    --parr-line-hover: #7FB4C8;
+    --parr-line-active: #7FB4C8;
+    --parr-fill: #7FB4C8;
+    --parr-fill-active: rgba(127,180,200,0.28);
+  }
+}
+/* Forzado claro (gana sobre el modo oscuro del sistema) */
+html.light {
+  --bg-app: #F6F4EF;
+  --surface: #FFFFFF;
+  --surface-alt: #F5F2EA;
+  --surface-hover: #ECE6D9;
+  --stone-line: rgba(52,46,34,0.09);
+  --stone-line-strong: rgba(52,46,34,0.16);
+  --ink: #322D24;
+  --ink-dim: #6E6656;
+  --muted: #9C9484;
+  --map-bg: #E9E4D8;
+  --cs-orange-deep: #A85E00;
+  --cs-orange-wash: rgba(240,162,0,0.14);
+  --cs-teal-wash: rgba(79,126,144,0.16);
+  --parr-line: rgba(79,126,144,0.55);
+  --parr-line-hover: var(--cs-teal);
+  --parr-line-active: var(--cs-teal);
+  --parr-fill: var(--cs-teal);
+  --parr-fill-active: rgba(79,126,144,0.28);
 }
 
 /* ========== RESET ========== */
@@ -101,7 +175,7 @@ body {
 #map {
   flex: 1;
   height: 100%;
-  background: #E9E4D8;
+  background: var(--map-bg);
 }
 .leaflet-container {
   font-family: 'Public Sans', sans-serif;
@@ -116,6 +190,7 @@ body {
   border-right: 1px solid var(--stone-line);
   display: flex;
   flex-direction: column;
+  overflow: hidden;          /* nada se desborda: la hoja móvil corta limpio */
   z-index: 1200;
   position: relative;
   transition: margin-left 0.32s cubic-bezier(0.65, 0, 0.35, 1);
@@ -128,8 +203,10 @@ body {
 
 .sb-scroll {
   flex: 1;
+  min-height: 0;             /* imprescindible: permite encoger y scrollear en flexbox */
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain; /* el scroll del panel no arrastra la página/mapa */
   padding: 0 20px 20px 20px;
   -webkit-overflow-scrolling: touch;
 }
@@ -443,6 +520,7 @@ body {
   border: 1px solid var(--stone-line);
 }
 .label-toggle-row .layer-name { font-size: 12.5px; color: var(--ink-dim); }
+.theme-row { margin-top: 10px; }
 
 /* Estadísticas */
 .stats-bar {
@@ -851,14 +929,19 @@ body {
     transform: translateY(calc(100% + 20px));
   }
 
-  /* ===== FAB flotante "Capas" ===== */
+  /* ===== FAB flotante "Filtros" ===== */
+  /* Centrado robusto por márgenes automáticos (no depende de transform,
+     que en algunos navegadores móviles se descuadra y corta el chip) */
   #sb-toggle {
     position: fixed;
     top: auto;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 0;
+    right: 0;
+    margin-left: auto;
+    margin-right: auto;
+    width: fit-content;
+    max-width: calc(100vw - 24px);
     bottom: calc(18px + env(safe-area-inset-bottom));
-    width: auto;
     height: 46px;
     padding: 0 18px;
     border-radius: 999px;
@@ -869,7 +952,7 @@ body {
     background: var(--surface);
     box-shadow: 0 6px 24px rgba(23,21,15,0.30);
     color: var(--ink);
-    transition: opacity 0.25s, transform 0.25s;
+    transition: opacity 0.25s, transform 0.25s, visibility 0.25s;
   }
   #sb-toggle::after {
     content: 'Filtros';
@@ -877,15 +960,18 @@ body {
     font-size: 13px;
     font-weight: 600;
     letter-spacing: 0.2px;
+    white-space: nowrap;
   }
-  #sb-toggle svg { width: 17px; height: 17px; }
+  #sb-toggle svg { width: 17px; height: 17px; flex-shrink: 0; }
   #sidebar:not(.collapsed) ~ #sb-toggle {
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
-    transform: translateX(-50%) translateY(12px);
+    transform: translateY(12px);
   }
   #sidebar.collapsed ~ #sb-toggle {
     opacity: 1;
+    visibility: visible;
     border-left: 1px solid var(--stone-line-strong);
   }
 

@@ -67,7 +67,8 @@ let allPoints = [];
 let markerIndex = [];
 let categoryState = {};      // clave: "layerKey::tipo" -> boolean
 let labelsOn = false;
-let map, baseLight, baseSat, satRoads, satLabels;
+let map, baseLight, baseDark, baseSat, satRoads, satLabels;
+let currentBaseMode = 'light';  // 'light' | 'sat' (mapa base activo)
 
 // Parroquias: geometrías para dibujar y estado del filtro
 let parroquiasGeo = null;       // FeatureCollection de parroquias (para dibujar)
@@ -264,7 +265,7 @@ function shapeIconHtml(shape, hex, size = 12) {
 function initMap() {
   map = L.map('map', {
     zoomControl: false,
-    minZoom: 11,
+    minZoom: 9,
     maxZoom: 19,
     preferCanvas: true,      // renderiza vectores en canvas: mucho más fluido en gama baja/móvil
     zoomSnap: 0.25,          // permite niveles de zoom fraccionarios → transición más suave
@@ -316,6 +317,11 @@ function initMap() {
     subdomains: 'abcd',
     maxZoom: 20
   });
+  baseDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd',
+    maxZoom: 20
+  });
   baseSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Tiles &copy; Esri',
     maxZoom: 19
@@ -334,20 +340,24 @@ function initMap() {
     className: 'sat-reference-layer'
   });
 
-  baseLight.addTo(map);
+  // Tema inicial (calles claras u oscuras según el modo)
+  currentBaseMode = 'light';
+  applyTheme(getDarkMode());
 
   // Cambio de mapa base
   document.querySelectorAll('.base-opt').forEach(el => {
     el.addEventListener('click', function() {
       document.querySelectorAll('.base-opt').forEach(o => o.classList.remove('active'));
       this.classList.add('active');
-      if (this.dataset.base === 'light') {
+      currentBaseMode = this.dataset.base;
+      if (currentBaseMode === 'light') {
         map.removeLayer(baseSat);
         map.removeLayer(satRoads);
         map.removeLayer(satLabels);
-        baseLight.addTo(map);
+        (getDarkMode() ? baseDark : baseLight).addTo(map);
       } else {
         map.removeLayer(baseLight);
+        map.removeLayer(baseDark);
         baseSat.addTo(map);
         satRoads.addTo(map);
         satLabels.addTo(map);
@@ -858,6 +868,59 @@ function initSidebarToggle() {
 }
 
 /* ================================================================
+   TEMA (modo oscuro)
+   ================================================================ */
+// ¿Modo oscuro activo? Preferencia guardada > sistema > claro por defecto
+function getDarkMode() {
+  const saved = localStorage.getItem('theme');
+  if (saved === 'dark') return true;
+  if (saved === 'light') return false;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+// Aplica el tema en el DOM (clases .dark / .light sobre <html>)
+function applyTheme(dark) {
+  const root = document.documentElement;
+  root.classList.toggle('dark', dark);
+  root.classList.toggle('light', !dark);
+  // Actualizar color de la barra del navegador
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#16140F' : '#F6F4EF');
+  // Tiles del mapa base: oscuras u oscuras según el modo
+  if (map && currentBaseMode === 'light') {
+    const tile = dark ? baseDark : baseLight;
+    const active = dark ? baseLight : baseDark;
+    map.removeLayer(active);
+    tile.addTo(map);
+  }
+}
+
+function initTheme() {
+  const chk = document.getElementById('toggle-theme');
+  if (!chk) return;
+
+  const dark = getDarkMode();
+  chk.checked = dark;
+  applyTheme(dark);
+
+  chk.addEventListener('change', () => {
+    localStorage.setItem('theme', chk.checked ? 'dark' : 'light');
+    applyTheme(chk.checked);
+  });
+
+  // Seguir el cambio del sistema solo si el usuario no eligió manualmente
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  const onSystemChange = () => {
+    const saved = localStorage.getItem('theme');
+    if (saved !== 'dark' && saved !== 'light') {
+      chk.checked = mq.matches;
+      applyTheme(mq.matches);
+    }
+  };
+  mq.addEventListener ? mq.addEventListener('change', onSystemChange) : mq.addListener(onSystemChange);
+}
+
+/* ================================================================
    INICIO
    ================================================================ */
 document.addEventListener('DOMContentLoaded', () => {
@@ -865,5 +928,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initSidebarToggle();
   initSearch();
   initChipActions();
+  initTheme();
   loadData(); // carga asíncrona y construye el resto
 });
