@@ -67,8 +67,7 @@ let allPoints = [];
 let markerIndex = [];
 let categoryState = {};      // clave: "layerKey::tipo" -> boolean
 let labelsOn = false;
-let map, baseLight, baseDark, baseSat, satRoads, satLabels;
-let currentBaseMode = 'light';  // 'light' | 'sat' (mapa base activo)
+let map, baseSat, satRoads, satLabels;
 
 // Parroquias: geometrías para dibujar y estado del filtro
 let parroquiasGeo = null;       // FeatureCollection de parroquias (para dibujar)
@@ -311,60 +310,28 @@ function initMap() {
     if (el) el.textContent = 'lat —, lon —';
   });
 
-  // Mapas base
-  baseLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    subdomains: 'abcd',
-    maxZoom: 20
-  });
-  baseDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    subdomains: 'abcd',
-    maxZoom: 20,
-    className: 'dark-tiles'
-  });
+  // Mapa base: imagen satelital de Esri + capas de calles y nombres
   baseSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Tiles &copy; Esri',
-    maxZoom: 19
+    maxZoom: 20,
+    maxNativeZoom: 19
   });
-  // Antes se usaban las etiquetas de CartoDB Voyager (pensadas para fondo claro) sobre
-  // la imagen satelital: por eso los nombres de calles casi no se veían. Esri publica
-  // capas de "Reference" hechas específicamente para superponerse sobre World_Imagery,
+  // Esri publica capas de "Reference" hechas para superponerse sobre World_Imagery,
   // con halo blanco y buen contraste: una de vías y otra de límites/nombres de lugares.
   satRoads = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19,
+    maxZoom: 20,
+    maxNativeZoom: 19,
     className: 'sat-reference-layer'
   });
   satLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19,
+    maxZoom: 20,
+    maxNativeZoom: 19,
     attribution: 'Tiles &copy; Esri',
     className: 'sat-reference-layer'
   });
-
-  // Tema inicial (calles claras u oscuras según el modo)
-  currentBaseMode = 'light';
-  applyTheme(getDarkMode());
-
-  // Cambio de mapa base
-  document.querySelectorAll('.base-opt').forEach(el => {
-    el.addEventListener('click', function() {
-      document.querySelectorAll('.base-opt').forEach(o => o.classList.remove('active'));
-      this.classList.add('active');
-      currentBaseMode = this.dataset.base;
-      if (currentBaseMode === 'light') {
-        map.removeLayer(baseSat);
-        map.removeLayer(satRoads);
-        map.removeLayer(satLabels);
-        (getDarkMode() ? baseDark : baseLight).addTo(map);
-      } else {
-        map.removeLayer(baseLight);
-        map.removeLayer(baseDark);
-        baseSat.addTo(map);
-        satRoads.addTo(map);
-        satLabels.addTo(map);
-      }
-    });
-  });
+  baseSat.addTo(map);
+  satRoads.addTo(map);
+  satLabels.addTo(map);
 
   // Geolocalización
   document.getElementById('locate-btn').addEventListener('click', () => {
@@ -886,14 +853,7 @@ function applyTheme(dark) {
   root.classList.toggle('light', !dark);
   // Actualizar color de la barra del navegador
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', dark ? '#16140F' : '#F6F4EF');
-  // Tiles del mapa base: oscuras u oscuras según el modo
-  if (map && currentBaseMode === 'light') {
-    const tile = dark ? baseDark : baseLight;
-    const active = dark ? baseLight : baseDark;
-    map.removeLayer(active);
-    tile.addTo(map);
-  }
+  if (meta) meta.setAttribute('content', dark ? '#111113' : '#F7F7F8');
 }
 
 function initTheme() {

@@ -16,21 +16,21 @@
   --gold-bright: var(--cs-orange-bright);
   --gold-wash: var(--cs-orange-wash);
 
-  /* Superficies — tema claro */
-  --bg-app: #F6F4EF;
+  /* Superficies — tema claro (neutro, sin tintes cálidos) */
+  --bg-app: #F7F7F8;
   --surface: #FFFFFF;
-  --surface-alt: #F5F2EA;
-  --surface-hover: #ECE6D9;
-  --stone-line: rgba(52,46,34,0.09);
-  --stone-line-strong: rgba(52,46,34,0.16);
+  --surface-alt: #F3F4F6;
+  --surface-hover: #E9EAEC;
+  --stone-line: rgba(24,24,27,0.08);
+  --stone-line-strong: rgba(24,24,27,0.16);
 
   /* Texto */
-  --ink: #322D24;
-  --ink-dim: #6E6656;
-  --muted: #9C9484;
+  --ink: #18181B;
+  --ink-dim: #52525B;
+  --muted: #8E8E93;
 
   /* Mapa */
-  --map-bg: #E9E4D8;
+  --map-bg: #E8EAED;
 
   /* Límites de parroquias en el mapa */
   --parr-line: rgba(79,126,144,0.55);
@@ -66,16 +66,16 @@
 /* Forzado por el toggle del usuario (clase .dark en <html>) */
 html.dark {
   color-scheme: dark;
-  --bg-app: #16140F;
-  --surface: #1E1B15;
-  --surface-alt: #262218;
-  --surface-hover: #312C20;
-  --stone-line: rgba(240,235,222,0.09);
-  --stone-line-strong: rgba(240,235,222,0.18);
-  --ink: #EFE9DC;
-  --ink-dim: #B6AC97;
-  --muted: #857C68;
-  --map-bg: #14120D;
+  --bg-app: #111113;
+  --surface: #19191C;
+  --surface-alt: #1F1F23;
+  --surface-hover: #26262B;
+  --stone-line: rgba(244,244,245,0.08);
+  --stone-line-strong: rgba(244,244,245,0.16);
+  --ink: #F4F4F5;
+  --ink-dim: #BDBDC4;
+  --muted: #8A8A91;
+  --map-bg: #0F0F11;
   --cs-orange-deep: #F0A200;   /* en oscuro el naranja claro lee mejor */
   --cs-orange-wash: rgba(240,162,0,0.20);
   --cs-teal-wash: rgba(79,126,144,0.24);
@@ -90,16 +90,16 @@ html.dark {
 @media (prefers-color-scheme: dark) {
   html:not(.light) {
     color-scheme: dark;
-    --bg-app: #16140F;
-    --surface: #1E1B15;
-    --surface-alt: #262218;
-    --surface-hover: #312C20;
-    --stone-line: rgba(240,235,222,0.09);
-    --stone-line-strong: rgba(240,235,222,0.18);
-    --ink: #EFE9DC;
-    --ink-dim: #B6AC97;
-    --muted: #857C68;
-    --map-bg: #14120D;
+    --bg-app: #111113;
+    --surface: #19191C;
+    --surface-alt: #1F1F23;
+    --surface-hover: #26262B;
+    --stone-line: rgba(244,244,245,0.08);
+    --stone-line-strong: rgba(244,244,245,0.16);
+    --ink: #F4F4F5;
+    --ink-dim: #BDBDC4;
+    --muted: #8A8A91;
+    --map-bg: #0F0F11;
     --cs-orange-deep: #F0A200;
     --cs-orange-wash: rgba(240,162,0,0.20);
     --cs-teal-wash: rgba(79,126,144,0.24);
@@ -112,16 +112,16 @@ html.dark {
 }
 /* Forzado claro (gana sobre el modo oscuro del sistema) */
 html.light {
-  --bg-app: #F6F4EF;
+  --bg-app: #F7F7F8;
   --surface: #FFFFFF;
-  --surface-alt: #F5F2EA;
-  --surface-hover: #ECE6D9;
-  --stone-line: rgba(52,46,34,0.09);
-  --stone-line-strong: rgba(52,46,34,0.16);
-  --ink: #322D24;
-  --ink-dim: #6E6656;
-  --muted: #9C9484;
-  --map-bg: #E9E4D8;
+  --surface-alt: #F3F4F6;
+  --surface-hover: #E9EAEC;
+  --stone-line: rgba(24,24,27,0.08);
+  --stone-line-strong: rgba(24,24,27,0.16);
+  --ink: #18181B;
+  --ink-dim: #52525B;
+  --muted: #8E8E93;
+  --map-bg: #E8EAED;
   --cs-orange-deep: #A85E00;
   --cs-orange-wash: rgba(240,162,0,0.14);
   --cs-teal-wash: rgba(79,126,144,0.16);
@@ -136,7 +136,7 @@ html.light {
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { height: 100%; margin: 0; padding: 0; }
 body {
-  font-family: 'Public Sans', -apple-system, sans-serif;
+  font-family: 'Poppins', -apple-system, sans-serif;
   background: var(--bg-app);
   color: var(--ink);
   overflow: hidden;
@@ -178,13 +178,7 @@ body {
   background: var(--map-bg);
 }
 .leaflet-container {
-  font-family: 'Public Sans', sans-serif;
-}
-
-/* Tiles oscuras del mapa: subir brillo y contraste para que las calles
-   y letras se lean mejor sobre el fondo negro */
-html.dark .dark-tiles {
-  filter: brightness(1.22) contrast(1.08) saturate(1.05);
+  font-family: 'Poppins', sans-serif;
 }
 
 /* ========== SIDEBAR ========== */
@@ -235,7 +229,7 @@ html.dark .dark-tiles {
   filter: drop-shadow(0 2px 4px rgba(52,46,34,0.15));
 }
 .brand h1 {
-  font-family: 'Fraunces', serif;
+  font-family: 'Poppins', serif;
   font-weight: 600;
   font-size: var(--fs-title);
   line-height: 1.25;
@@ -253,7 +247,7 @@ html.dark .dark-tiles {
 /* Secciones */
 .sec { margin-top: 24px; }
 .sec-title {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Poppins', monospace;
   font-size: 10.5px;
   letter-spacing: 1.4px;
   text-transform: uppercase;
@@ -280,7 +274,7 @@ html.dark .dark-tiles {
   padding: 10px 36px 10px 12px;
   color: var(--ink);
   font-size: 13.5px;
-  font-family: 'Public Sans', sans-serif;
+  font-family: 'Poppins', sans-serif;
   outline: none;
   transition: border-color 0.2s;
 }
@@ -318,7 +312,7 @@ html.dark .dark-tiles {
   padding: 10px 32px 10px 12px;
   color: var(--ink);
   font-size: 13.5px;
-  font-family: 'Public Sans', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-weight: 600;
   outline: none;
   cursor: pointer;
@@ -354,7 +348,7 @@ html.dark .dark-tiles {
   white-space: nowrap;
 }
 .sr-layer {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Poppins', monospace;
   font-size: 9px;
   color: var(--muted);
   text-transform: uppercase;
@@ -375,7 +369,7 @@ html.dark .dark-tiles {
   border: 1px solid var(--stone-line-strong);
   background: var(--surface);
   color: var(--ink-dim);
-  font-family: 'Public Sans', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -404,7 +398,7 @@ html.dark .dark-tiles {
   user-select: none;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  font-family: 'Public Sans', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-size: 12px;
   font-weight: 500;
   line-height: 1.2;
@@ -419,7 +413,7 @@ html.dark .dark-tiles {
 }
 .chip .chip-shape { flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .chip .chip-count {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Poppins', monospace;
   font-size: 10px;
   color: var(--muted);
   min-width: 16px;
@@ -471,26 +465,6 @@ html.dark .dark-tiles {
   background: var(--cs-orange);
 }
 
-/* Mapa base */
-.base-options { display: flex; gap: 8px; }
-.base-opt {
-  flex: 1;
-  padding: 9px 8px;
-  border-radius: 9px;
-  border: 1px solid var(--stone-line-strong);
-  background: var(--surface-alt);
-  text-align: center;
-  cursor: pointer;
-  font-size: 11.5px;
-  color: var(--ink-dim);
-  transition: 0.15s;
-  touch-action: manipulation;
-}
-.base-opt.active {
-  border-color: var(--cs-teal);
-  background: var(--cs-teal-wash);
-  color: var(--ink);
-}
 .base-hint {
   font-size: 10.5px;
   color: var(--muted);
@@ -504,7 +478,7 @@ html.dark .dark-tiles {
   border: none;
   border-radius: 8px;
   padding: 11px 16px;
-  font-family: 'Public Sans', sans-serif;
+  font-family: 'Poppins', sans-serif;
   font-weight: 600;
   font-size: 13px;
   color: var(--ink);
@@ -538,7 +512,7 @@ html.dark .dark-tiles {
   padding-bottom: calc(18px + env(safe-area-inset-bottom));
 }
 .stats-num {
-  font-family: 'Fraunces', serif;
+  font-family: 'Poppins', serif;
   font-size: var(--fs-num);
   font-weight: 600;
   color: var(--cs-orange-deep);
@@ -558,7 +532,7 @@ html.dark .dark-tiles {
 }
 .stats-total b {
   color: var(--ink-dim);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Poppins', monospace;
   font-weight: 500;
 }
 
@@ -602,7 +576,7 @@ html.dark .dark-tiles {
 .leaflet-popup-content { margin: 14px 16px; min-width: 210px; }
 .leaflet-popup-close-button { color: var(--muted) !important; }
 .pop-eyebrow {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Poppins', monospace;
   font-size: 9.5px;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -613,7 +587,7 @@ html.dark .dark-tiles {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Poppins', monospace;
   font-size: 10px;
   letter-spacing: 0.4px;
   text-transform: uppercase;
@@ -621,7 +595,7 @@ html.dark .dark-tiles {
   margin-bottom: 6px;
 }
 .pop-name {
-  font-family: 'Fraunces', serif;
+  font-family: 'Poppins', serif;
   font-size: 15.5px;
   font-weight: 600;
   line-height: 1.3;
@@ -643,7 +617,7 @@ html.dark .dark-tiles {
   line-height: 1.5;
 }
 .pop-coords {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Poppins', monospace;
   font-size: 10.5px;
   color: var(--ink-dim);
   background: var(--surface-alt);
@@ -673,7 +647,7 @@ html.dark .dark-tiles {
   border: 1px solid var(--stone-line-strong);
   border-radius: 6px;
   padding: 4px 9px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Poppins', monospace;
   font-size: 9.5px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -787,7 +761,7 @@ html.dark .dark-tiles {
   opacity: 0.5;
 }
 .mc-bubble span {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Poppins', monospace;
   font-weight: 600;
   font-size: 12px;
   color: var(--ink);
@@ -816,7 +790,7 @@ html.dark .dark-tiles {
 .leaflet-coords {
   background: rgba(23,21,15,0.78);
   color: #F4EFE6;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Poppins', monospace;
   font-size: 10px;
   letter-spacing: 0.3px;
   padding: 4px 9px;
@@ -962,7 +936,7 @@ html.dark .dark-tiles {
   }
   #sb-toggle::after {
     content: 'Filtros';
-    font-family: 'Public Sans', sans-serif;
+    font-family: 'Poppins', sans-serif;
     font-size: 13px;
     font-weight: 600;
     letter-spacing: 0.2px;
@@ -988,7 +962,6 @@ html.dark .dark-tiles {
   .chip { padding: 11px 14px; font-size: 13px; }
   .chip .chip-count { font-size: 11px; }
   .chip-action { padding: 12px 10px; font-size: 13px; }
-  .base-opt { padding: 13px 8px; }
   .btn-primary { padding: 14px 16px; }
   /* 16px evita el zoom automático de iOS al enfocar el input */
   #search { padding: 12px 36px 12px 14px; font-size: 16px; }
