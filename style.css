@@ -280,6 +280,30 @@ body {
 .sr-empty { padding: 12px; font-size: 12px; color: var(--muted); text-align: center; }
 
 /* Chips de categorías (filtro plano) */
+.chip-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.chip-action {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--stone-line-strong);
+  background: var(--surface);
+  color: var(--ink-dim);
+  font-family: 'Public Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: 0.15s;
+}
+.chip-action:hover { background: var(--surface-hover); color: var(--ink); }
+.chip-action:focus-visible {
+  outline: 2px solid var(--cs-orange);
+  outline-offset: 2px;
+}
 #cats-root {
   display: flex;
   flex-wrap: wrap;
@@ -871,6 +895,7 @@ body {
   .switch input:checked + .switch-track::before { transform: translateX(16px); }
   .chip { padding: 11px 14px; font-size: 13px; }
   .chip .chip-count { font-size: 11px; }
+  .chip-action { padding: 12px 10px; font-size: 13px; }
   .base-opt { padding: 13px 8px; }
   .btn-primary { padding: 14px 16px; }
   /* 16px evita el zoom automático de iOS al enfocar el input */

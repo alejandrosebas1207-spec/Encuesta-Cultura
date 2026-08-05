@@ -216,6 +216,9 @@ function setParroquia(name) {
   const sel = document.getElementById('parroquia-filter');
   if (sel && sel.value !== parroquiaSel) sel.value = parroquiaSel;
 
+  // Reconstruir chips según la parroquia activa (conteos locales)
+  buildChips();
+
   if (parroquiasLayer) {
     parroquiasLayer.eachLayer(l => {
       const lname = l.feature.properties.dpa_despar;
@@ -516,6 +519,18 @@ async function loadData() {
 /* ================================================================
    CONSTRUCCIÓN DE CHIPS DE CATEGORÍAS (filtro plano)
    ================================================================ */
+// Conteo de una categoría según la parroquia activa (o global si no hay filtro)
+function chipCount(layer, tipo) {
+  if (!parroquiaSel) return layer.cats[tipo].count;
+  let n = 0;
+  layer.points.forEach(p => {
+    if (p.tipo === tipo && (p.parroquia || '__sin__') === parroquiaSel) n++;
+  });
+  return n;
+}
+
+// Construye/actualiza los chips; si hay una parroquia activa, solo muestra
+// las categorías con sitios en ella (con su conteo local)
 function buildChips() {
   const root = document.getElementById('cats-root');
   root.innerHTML = '';
@@ -524,18 +539,20 @@ function buildChips() {
     Object.entries(layer.cats)
       .sort((a, b) => b[1].count - a[1].count)
       .forEach(([tipo, meta]) => {
+        const local = chipCount(layer, tipo);
+        if (parroquiaSel && local === 0) return; // ocultar si no hay sitios en la parroquia
         const sk = layer.key + '::' + tipo;
         const chip = document.createElement('button');
         chip.type = 'button';
-        chip.className = 'chip checked';
+        chip.className = 'chip' + (categoryState[sk] ? ' checked' : '');
         chip.dataset.sk = sk;
         chip.style.setProperty('--chip-color', meta.hex);
         chip.setAttribute('role', 'switch');
-        chip.setAttribute('aria-checked', 'true');
+        chip.setAttribute('aria-checked', String(!!categoryState[sk]));
         chip.innerHTML = `
           <span class="chip-shape" aria-hidden="true">${shapeIconHtml(layer.shape, meta.hex, 11)}</span>
           <span class="chip-label">${meta.label}</span>
-          <span class="chip-count">${meta.count}</span>
+          <span class="chip-count">${local}</span>
         `;
         chip.addEventListener('click', () => {
           categoryState[sk] = !categoryState[sk];
@@ -547,6 +564,26 @@ function buildChips() {
         root.appendChild(chip);
       });
   });
+}
+
+// Marcar/desmarcar todos los chips
+function setAllChips(on) {
+  Object.keys(categoryState).forEach(sk => {
+    categoryState[sk] = on;
+    localStorage.setItem('catState_' + sk, JSON.stringify(on));
+  });
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.classList.toggle('checked', on);
+    chip.setAttribute('aria-checked', String(on));
+  });
+  refreshMarkers();
+}
+
+function initChipActions() {
+  const allBtn = document.getElementById('btn-all-chips');
+  const noneBtn = document.getElementById('btn-none-chips');
+  if (allBtn) allBtn.addEventListener('click', () => setAllChips(true));
+  if (noneBtn) noneBtn.addEventListener('click', () => setAllChips(false));
 }
 
 /* ================================================================
@@ -827,5 +864,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initMap();
   initSidebarToggle();
   initSearch();
+  initChipActions();
   loadData(); // carga asíncrona y construye el resto
 });
