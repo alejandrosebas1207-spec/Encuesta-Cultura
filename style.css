@@ -205,18 +205,20 @@ html.dark .sec-pin {
   stroke: #18181B;
 }
 .sec-tip {
-  background: transparent !important;
+  background: rgba(255,255,255,0.9) !important;
   border: none !important;
-  box-shadow: none !important;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
   font-weight: 600;
   font-size: 11px;
   line-height: 1.2;
-  color: var(--ink) !important;
-  text-shadow: 0 1px 2px #fff, 0 0 4px #fff;
+  color: #3A2E1F !important;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(23,21,15,0.18) !important;
 }
 html.dark .sec-tip {
+  background: rgba(25,25,28,0.92) !important;
   color: #F4F4F5 !important;
-  text-shadow: 0 1px 2px #111113, 0 0 4px #111113;
 }
 
 /* ========== SIDEBAR ========== */
@@ -723,9 +725,10 @@ html.dark .sec-tip {
 }
 
 /* ========== ETIQUETAS EN MAPA ========== */
-/* Chip oscuro fijo: se mantiene legible sobre cualquier fondo (calles o satélite) */
+/* Chip oscuro fijo: se mantiene legible sobre cualquier fondo (calles o satélite).
+   Sin backdrop-filter: es MUY costoso para la GPU en tablets/móviles */
 .pt-label {
-  background: rgba(23,21,15,0.85) !important;
+  background: rgba(23,21,15,0.88) !important;
   color: #F4EFE6 !important;
   padding: 2px 10px !important;
   border-radius: 4px !important;
@@ -736,7 +739,7 @@ html.dark .sec-tip {
   white-space: nowrap;
   font-size: 11px;
   line-height: 1.4;
-  backdrop-filter: blur(2px);
+  pointer-events: none;
 }
 
 /* ========== TOOLTIP PARROQUIAS ========== */
@@ -871,6 +874,25 @@ html.dark .mc-bubble {
   color: var(--ink) !important;
   border-color: var(--stone-line-strong) !important;
 }
+
+/* Rendimiento: mover tiles, marcadores y etiquetas fuera del flujo de pintura
+   normal (composición por GPU) → mucho más fluido al arrastrar en tablets */
+.leaflet-tile-pane,
+.leaflet-overlay-pane,
+.leaflet-marker-pane,
+.leaflet-tooltip-pane,
+.leaflet-tile-container {
+  will-change: transform;
+}
+.leaflet-tile-container img,
+.leaflet-marker-icon {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.sec-tip.leaflet-tooltip {
+  will-change: auto;
+}
+
 .leaflet-control-attribution {
   background: rgba(255,255,255,0.82) !important;
   color: var(--ink-dim) !important;

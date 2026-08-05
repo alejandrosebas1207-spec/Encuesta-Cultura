@@ -393,12 +393,16 @@ function initMap() {
     });
   });
 
-  // Al hacer zoom, actualizar etiquetas (con debounce: en pinch-zoom en móvil
-  // "zoomend" puede dispararse muy seguido, y updateLabels recorre todos los puntos)
+  // Al hacer zoom o mover el mapa, actualizar etiquetas (con debounce:
+  // en pinch-zoom en móvil "zoomend" puede dispararse muy seguido)
   let labelUpdateTimer = null;
   map.on('zoomend', () => {
     clearTimeout(labelUpdateTimer);
     labelUpdateTimer = setTimeout(updateLabels, 80);
+  });
+  map.on('moveend', () => {
+    clearTimeout(labelUpdateTimer);
+    labelUpdateTimer = setTimeout(updateLabels, 200);
   });
 }
 
@@ -602,8 +606,10 @@ function createMarkers() {
       zoomToBoundsOnClick: true,
       chunkedLoading: true,
       chunkInterval: 60,     // carga los puntos por tandas: arranque rápido en móvil
+      chunkDelay: 30,
       animate: false,
       animateAddingMarkers: false,
+      spiderfyDistanceMultiplier: 1.2, // spiderfy más compacto: menos desplazamiento en pantallas chicas
       iconCreateFunction: makeClusterIconFn(layer.key)
     });
 
@@ -775,14 +781,16 @@ function refreshMarkers() {
    ================================================================ */
 function updateLabels() {
   const zoom = map.getZoom();
+  const bounds = map.getBounds(); // solo etiquetar lo que está en pantalla
   markerIndex.forEach(item => {
     const sk = item.layer.key + '::' + item.p.tipo;
     const meta = item.layer.cats[item.p.tipo];
     const active = categoryState[sk] && passesParroquiaFilter(item.p);
-    // Si el marcador está agrupado en un clúster no se ve en pantalla:
-    // no gastar recursos en su etiqueta (se arma al desagruparse)
+    // Si el marcador está agrupado en un clúster o fuera de pantalla no se ve:
+    // no gastar recursos en su etiqueta (se arma al desagruparse / al mover)
     const clustered = item.marker._parent && item.marker._parent !== item.layer.cluster;
-    const shouldLabel = active && labelsOn && !clustered && zoom >= meta.labelZoom;
+    const onScreen = bounds.contains([item.p.lat, item.p.lon]);
+    const shouldLabel = active && labelsOn && !clustered && onScreen && zoom >= meta.labelZoom;
     if (shouldLabel && !item.tooltipOpen) {
       item.marker.bindTooltip(item.p.nombre, {
         permanent: true,
