@@ -186,6 +186,37 @@ body {
   font-family: 'Poppins', sans-serif;
 }
 
+/* ========== SECTORES DE REFERENCIA (uno por parroquia) ========== */
+.sec-icon {
+  background: none;
+  border: none;
+}
+.sec-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sec-color, #5A3D8A);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+html.dark .sec-dot { border-color: #18181B; }
+html.dark .sec-dot { background: #8B69C2; }
+.sec-tip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  font-weight: 600;
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--ink) !important;
+  text-shadow: 0 1px 2px #fff, 0 0 4px #fff;
+}
+html.dark .sec-tip {
+  color: #F4F4F5 !important;
+  text-shadow: 0 1px 2px #111113, 0 0 4px #111113;
+}
+
 /* ========== SIDEBAR ========== */
 #sidebar {
   width: 360px;

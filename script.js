@@ -4,7 +4,8 @@
 const DATA_FILES = {
   espacios: 'data/Espacios_Culturales.geojson',
   infra: 'data/Infraestructura_Cultural.geojson',
-  atractivos: 'data/Atractivo_Turistico.geojson'
+  atractivos: 'data/Atractivo_Turistico.geojson',
+  refsParroquias: 'data/refs_parroquias.geojson'
 };
 
 const PARROQUIAS_FILE = 'data/parroquias_dmq.geojson';
@@ -389,11 +390,12 @@ function initMap() {
 async function loadData() {
   const loadingEl = document.getElementById('loading');
   try {
-    const [espacios, infra, atractivos, parroquiasPromise] = await Promise.all([
+    const [espacios, infra, atractivos, parroquiasPromise, sectors] = await Promise.all([
       fetch(DATA_FILES.espacios).then(r => r.json()),
       fetch(DATA_FILES.infra).then(r => r.json()),
       fetch(DATA_FILES.atractivos).then(r => r.json()),
-      loadParroquias()
+      loadParroquias(),
+      loadSectors()
     ]);
 
     // Función para procesar un FeatureCollection y extraer puntos
@@ -637,6 +639,83 @@ function makeClusterIconFn(layerKey) {
   };
 }
 
+// ===== Sectores de referencia: un punto por parroquia =====
+const SECTOR_LABEL_ZOOM = 12;
+let sectorsOn = true;
+let sectorLayer = null;
+let sectorItems = []; // { marker, name, tooltipOpen }
+
+// Convierte "TURUBAMBA" → "Turubamba" para la etiqueta
+function titleCase(s) {
+  return String(s || '').toLowerCase().replace(/(^|\s)\S/g, m => m.toUpperCase());
+}
+
+async function loadSectors() {
+  try {
+    const data = await fetch(DATA_FILES.refsParroquias).then(r => r.json());
+    sectorItems = [];
+    sectorLayer = L.geoJSON(data, {
+      pointToLayer: (feature, latlng) => {
+        const p = feature.properties || {};
+        const icon = L.divIcon({
+          html: '<span class="sec-dot"></span>',
+          className: 'sec-icon',
+          iconSize: [14, 14],
+          iconAnchor: [7, 7]
+        });
+        const marker = L.marker(latlng, { icon, keyboard: false });
+        marker.bindPopup(`
+          <div class="pop-eyebrow">Sector de referencia</div>
+          <div class="pop-name">${escapeHtml(titleCase(p.p || ''))}</div>
+          <div class="pop-parr">${escapeHtml(p.n || '')}</div>
+          <div class="pop-coords">${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}</div>
+        `, { closeButton: true, maxWidth: 250 });
+        sectorItems.push({ marker, name: titleCase(p.p) || titleCase(p.n), tooltipOpen: false });
+        return marker;
+      }
+    });
+    if (sectorsOn) sectorLayer.addTo(map);
+  } catch (e) {
+    console.warn('No se pudieron cargar los sectores de referencia:', e);
+  }
+}
+
+function setSectors(on) {
+  sectorsOn = on;
+  try { localStorage.setItem('sectorsOn', JSON.stringify(on)); } catch (e) {}
+  if (sectorLayer) {
+    if (on) sectorLayer.addTo(map);
+    else map.removeLayer(sectorLayer);
+  }
+}
+
+function initSectors() {
+  const chk = document.getElementById('sector-toggle');
+  if (!chk) return;
+  chk.checked = sectorsOn;
+  chk.addEventListener('change', () => setSectors(chk.checked));
+}
+
+// Etiquetas de sectores según zoom (independiente de los filtros)
+function updateSectorLabels(zoom) {
+  if (!sectorItems.length) return;
+  const show = zoom >= SECTOR_LABEL_ZOOM;
+  sectorItems.forEach(item => {
+    if (show && !item.tooltipOpen) {
+      item.marker.bindTooltip(item.name, {
+        permanent: true,
+        direction: 'right',
+        offset: [8, 0],
+        className: 'sec-tip'
+      });
+      item.tooltipOpen = true;
+    } else if (!show && item.tooltipOpen) {
+      item.marker.unbindTooltip();
+      item.tooltipOpen = false;
+    }
+  });
+}
+
 /* ================================================================
    REFRESCAR MARCADORES (aplicar filtros)
    ================================================================ */
@@ -681,6 +760,7 @@ function updateLabels() {
       item.tooltipOpen = false;
     }
   });
+  updateSectorLabels(zoom);
 }
 
 /* ================================================================
@@ -726,6 +806,14 @@ function restoreState() {
     document.getElementById('toggle-labels').checked = labelsOn;
   } else {
     labelsOn = false;
+  }
+
+  // Restaurar sectores de referencia (por defecto activos)
+  const sectorsSaved = localStorage.getItem('sectorsOn');
+  if (sectorsSaved !== null) {
+    sectorsOn = JSON.parse(sectorsSaved);
+    const sectorChk = document.getElementById('sector-toggle');
+    if (sectorChk) sectorChk.checked = sectorsOn;
   }
 
   // Aplicar cambios a marcadores
@@ -891,5 +979,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initSearch();
   initChipActions();
   initTheme();
+  initSectors();
   loadData(); // carga asíncrona y construye el resto
 });
