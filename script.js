@@ -68,7 +68,7 @@ let allPoints = [];
 let markerIndex = [];
 let categoryState = {};      // clave: "layerKey::tipo" -> boolean
 let labelsOn = false;
-let map, baseSat, satRoads, satLabels;
+let map, lightBase, darkBase, darkRef;
 
 // Parroquias: geometrías para dibujar y estado del filtro
 let parroquiasGeo = null;       // FeatureCollection de parroquias (para dibujar)
@@ -268,7 +268,7 @@ function initMap() {
     minZoom: 9,
     maxZoom: 19,
     preferCanvas: true,      // renderiza vectores en canvas: mucho más fluido en gama baja/móvil
-    zoomSnap: 0.25,          // permite niveles de zoom fraccionarios → transición más suave
+    zoomSnap: 1,             // solo zooms enteros: los tiles nunca se estiran ni se ven borrosos
     zoomDelta: 0.5,          // cuánto avanza cada clic en +/- o cada doble clic
     wheelPxPerZoomLevel: 200, // más scroll necesario por nivel → la rueda/trackpad ya no "salta"
     wheelDebounceTime: 100   // espera un poco entre pasos de zoom en vez de encadenarlos de golpe
@@ -311,29 +311,32 @@ function initMap() {
     if (el) el.textContent = 'lat —, lon —';
   });
 
-  // Mapa base: imagen satelital de Esri World Imagery "Clarity" (imágenes más
-  // recientes de Maxar, tiles públicos sin API key) + capas de calles y nombres
-  baseSat = L.tileLayer('https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    attribution: 'Imagery &copy; Esri (Clarity)',
-    maxZoom: 20,
-    maxNativeZoom: 19
-  });
-  // Esri publica capas de "Reference" hechas para superponerse sobre World_Imagery,
-  // con halo blanco y buen contraste: una de vías y otra de límites/nombres de lugares.
-  satRoads = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 20,
+  // Mapa base: una sola capa de calles coloreada (rápida, con nombres
+  // incluidos, sin API key) en claro, y Esri Dark Gray en modo oscuro.
+  // Antes eran 3 capas de satélite Esri → pesado y borroso en móvil.
+  lightBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri',
+    maxZoom: 19,
     maxNativeZoom: 19,
-    className: 'sat-reference-layer'
+    updateWhenIdle: false, // carga teselas durante el gesto (zoom/pan): nada de borroso "colgado"
+    keepBuffer: 4         // pre-carga algo de margen alrededor: menos cortes al mover
   });
-  satLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 20,
+  // En modo oscuro usamos la variante "Dark Gray Canvas" de Esri: calles y
+  // nombres visibles sobre fondo gris oscuro (2 capas ligeras, sin filtros CSS)
+  darkBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    maxNativeZoom: 19,
+    updateWhenIdle: false,
+    keepBuffer: 4
+  });
+  darkRef = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
     maxNativeZoom: 19,
     attribution: 'Tiles &copy; Esri',
-    className: 'sat-reference-layer'
+    updateWhenIdle: false,
+    keepBuffer: 4
   });
-  baseSat.addTo(map);
-  satRoads.addTo(map);
-  satLabels.addTo(map);
+  setBaseTheme(getDarkMode());
 
   // Geolocalización
   document.getElementById('locate-btn').addEventListener('click', () => {
@@ -945,6 +948,26 @@ function applyTheme(dark) {
   // Actualizar color de la barra del navegador
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', dark ? '#111113' : '#F7F7F8');
+  setBaseTheme(dark);
+}
+
+// Cambia el mapa base según el tema: una sola capa de calles en claro,
+// Dark Gray Canvas en oscuro (swap sin recargar la página)
+function setBaseTheme(dark) {
+  if (!map || typeof map.hasLayer !== 'function') return;
+  if (dark) {
+    if (lightBase && map.hasLayer(lightBase)) map.removeLayer(lightBase);
+    if (darkBase && !map.hasLayer(darkBase)) {
+      darkBase.addTo(map);
+      darkRef.addTo(map);
+    }
+  } else {
+    if (darkBase && map.hasLayer(darkBase)) {
+      map.removeLayer(darkBase);
+      map.removeLayer(darkRef);
+    }
+    if (lightBase && !map.hasLayer(lightBase)) lightBase.addTo(map);
+  }
 }
 
 function initTheme() {
