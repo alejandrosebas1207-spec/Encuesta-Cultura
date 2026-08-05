@@ -13,9 +13,8 @@ const LAYER_DEFS = {
     key: 'espacios',
     title: 'Espacios culturales',
     shape: 'circle',
-    // Mapeo de propiedades: nombre del campo en el GeoJSON y su valor esperado
-    propNombre: 'Name',      // campo que contiene el nombre
-    propTipo: 'Tipos',       // campo que contiene la categoría/tipo
+    propNombre: 'Name',
+    propTipo: 'Tipos',
     cats: {
       "Espacio Multidisciplinario":        { label: "Espacios multidisciplinarios",       color: "var(--c-multi)" },
       "Espacio musical":                   { label: "Espacios musicales",                 color: "var(--c-musical)" },
@@ -32,7 +31,7 @@ const LAYER_DEFS = {
   infra: {
     key: 'infra',
     title: 'Infraestructura cultural',
-    shape: 'circle',
+    shape: 'diamond',
     propNombre: 'sitios',
     propTipo: 'tipologia',
     cats: {
@@ -49,7 +48,7 @@ const LAYER_DEFS = {
   atractivos: {
     key: 'atractivos',
     title: 'Atractivos turísticos',
-    shape: 'circle',
+    shape: 'pin',
     propNombre: 'NOMBRE_DEL',
     propTipo: 'CATEGORÍA',
     cats: {
@@ -80,11 +79,17 @@ function escapeHtml(s) {
 }
 
 function shapeIconHtml(shape, hex, size = 12) {
+  const border = '1px solid rgba(255,255,255,.9)';
   if (shape === 'circle') {
-    return `<span style="display:inline-block;width:${size}px;height:${size}px;border-radius:50%;background:${hex};border:1px solid rgba(23,21,15,.6);"></span>`;
+    return `<span style="display:inline-block;width:${size}px;height:${size}px;border-radius:50%;background:${hex};border:${border};box-shadow:0 0 0 2px rgba(23,21,15,.18)"></span>`;
   }
-  // Por si usas otras formas (diamante, triángulo) las puedes añadir
-  return `<span style="display:inline-block;width:${size}px;height:${size}px;border-radius:50%;background:${hex};border:1px solid rgba(23,21,15,.6);"></span>`;
+  if (shape === 'diamond') {
+    return `<span style="display:inline-block;width:${size - 4}px;height:${size - 4}px;transform:rotate(45deg);background:${hex};border:${border};box-shadow:0 0 0 2px rgba(23,21,15,.18)"></span>`;
+  }
+  if (shape === 'pin') {
+    return `<span style="display:inline-block;width:${size}px;height:${size}px;background:${hex};clip-path:polygon(50% 100%, 100% 38%, 83% 8%, 50% 0, 17% 8%, 0 38%);border:none;filter:drop-shadow(0 1px 2px rgba(23,21,15,.35))"></span>`;
+  }
+  return `<span style="display:inline-block;width:${size}px;height:${size}px;border-radius:50%;background:${hex};border:${border};"></span>`;
 }
 
 /* ================================================================
@@ -103,6 +108,41 @@ function initMap() {
   }).setView([-0.19, -78.49], 12);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
   L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(map);
+
+  // Botón flotante de ubicación en el mapa (siempre a mano, incluso con panel cerrado)
+  const locateBtn = L.control({ position: 'bottomright' });
+  locateBtn.onAdd = function() {
+    const div = L.DomUtil.create('div', 'leaflet-bar locate-fab');
+    div.innerHTML = `
+      <a href="#" role="button" title="Ir a mi ubicación" aria-label="Ir a mi ubicación">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+        </svg>
+      </a>`;
+    div.addEventListener('click', (e) => {
+      e.preventDefault();
+      map.locate({ setView: true, maxZoom: 16 });
+    });
+    return div;
+  };
+  locateBtn.addTo(map);
+
+  // Mostrar coordenadas del cursor (útil para encuestadores)
+  const coordCtrl = L.control({ position: 'bottomleft' });
+  coordCtrl.onAdd = function() {
+    const div = L.DomUtil.create('div', 'leaflet-coords');
+    div.innerHTML = '<span>lat —, lon —</span>';
+    return div;
+  };
+  coordCtrl.addTo(map);
+  map.on('mousemove', (e) => {
+    const el = document.querySelector('.leaflet-coords span');
+    if (el) el.textContent = `lat ${e.latlng.lat.toFixed(5)}, lon ${e.latlng.lng.toFixed(5)}`;
+  });
+  map.on('mouseout', () => {
+    const el = document.querySelector('.leaflet-coords span');
+    if (el) el.textContent = 'lat —, lon —';
+  });
 
   // Mapas base
   baseLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
@@ -161,6 +201,32 @@ function initMap() {
   });
   map.on('locationerror', () => {
     alert('No se pudo obtener tu ubicación. Asegúrate de dar permisos de geolocalización.');
+  });
+
+  // Botón "Copiar coords" dentro de los popups
+  map.on('popupopen', () => {
+    document.querySelectorAll('.pop-copy').forEach(btn => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = '1';
+      btn.addEventListener('click', () => {
+        const text = btn.dataset.copy;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(() => {
+            btn.textContent = '¡Copiado!';
+            setTimeout(() => { btn.textContent = 'Copiar coords'; }, 1500);
+          });
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          btn.textContent = '¡Copiado!';
+          setTimeout(() => { btn.textContent = 'Copiar coords'; }, 1500);
+        }
+      });
+    });
   });
 
   // Al hacer zoom, actualizar etiquetas (con debounce: en pinch-zoom en móvil
@@ -226,9 +292,9 @@ async function loadData() {
       });
       Object.keys(layer.cats).forEach(k => {
         layer.cats[k].count = counts[k] || 0;
-        // Umbral de zoom para etiquetas
+        // Umbral de zoom para etiquetas (bajos a propósito: el mapa es referencial para encuestadores)
         const c = layer.cats[k].count;
-        layer.cats[k].labelZoom = c > 200 ? 16 : c > 90 ? 15 : c > 40 ? 14 : c > 10 ? 13 : 12;
+        layer.cats[k].labelZoom = c > 200 ? 15 : c > 90 ? 14 : c > 40 ? 13 : c > 10 ? 12 : 11;
       });
       layer.total = layer.points.length;
     });
@@ -427,19 +493,26 @@ function createMarkers() {
     layer.points.forEach(p => {
       const meta = layer.cats[p.tipo];
       if (!meta) return; // seguridad
+      const shape = layer.shape;
+      const size = shape === 'pin' ? 24 : 16;
       const icon = L.divIcon({
-        html: `<div class="mk-wrap"><span class="mk-circle" style="background:${meta.hex}"></span></div>`,
+        html: `<div class="mk-wrap mk-${shape}" style="--mk-color:${meta.hex}">
+          <span class="mk-shape"></span>
+        </div>`,
         className: '',
-        iconSize: [15, 15],
-        iconAnchor: [7, 7]
+        iconSize: [size, size],
+        iconAnchor: [size / 2, shape === 'pin' ? size : size / 2]
       });
       const marker = L.marker([p.lat, p.lon], { icon });
       marker.bindPopup(`
         <div class="pop-eyebrow">${layer.title}</div>
         <div class="pop-cat">${shapeIconHtml(layer.shape, meta.hex, 9)} ${meta.label}</div>
         <div class="pop-name">${escapeHtml(p.nombre)}</div>
-        <div class="pop-meta">Sin dirección registrada aún.<br>Información adicional pendiente.</div>
-        <a href="https://www.google.com/maps?q=${p.lat},${p.lon}" target="_blank" class="pop-link">Ver en Google Maps →</a>
+        <div class="pop-coords">${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}</div>
+        <div class="pop-link-row">
+          <a href="https://www.google.com/maps?q=${p.lat},${p.lon}" target="_blank" class="pop-link">Abrir en Google Maps →</a>
+          <button class="pop-copy" data-copy="${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}">Copiar coords</button>
+        </div>
       `, { closeButton: true, maxWidth: 260 });
       markerIndex.push({ p, marker, layer, tooltipOpen: false });
     });
@@ -450,7 +523,7 @@ function createMarkers() {
 
 // Función para icono de clúster por capa
 function makeClusterIconFn(layerKey) {
-  const border = {
+  const hex = {
     espacios: resolveColor('var(--gold)'),
     infra: resolveColor('var(--c-inf-lit)'),
     atractivos: resolveColor('var(--c-atr-cult)')
@@ -458,9 +531,9 @@ function makeClusterIconFn(layerKey) {
 
   return function(cluster) {
     const count = cluster.getChildCount();
-    const size = count < 10 ? 32 : count < 50 ? 38 : count < 150 ? 44 : 50;
+    const size = count < 10 ? 34 : count < 50 ? 40 : count < 150 ? 46 : 52;
     return L.divIcon({
-      html: `<div class="mc-bubble" style="border-color:${border}"><span>${count}</span></div>`,
+      html: `<div class="mc-bubble" style="--mc-color:${hex}"><span>${count}</span></div>`,
       className: 'mc-wrap',
       iconSize: [size, size]
     });

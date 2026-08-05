@@ -561,14 +561,50 @@ body {
   color: var(--muted);
   line-height: 1.5;
 }
+.pop-coords {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  color: var(--ink-dim);
+  background: var(--surface-alt);
+  border: 1px solid var(--stone-line);
+  border-radius: 6px;
+  padding: 4px 8px;
+  display: inline-block;
+  margin-top: 6px;
+}
+.pop-link-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
 .pop-link {
   display: inline-block;
-  margin-top: 8px;
   color: var(--cs-orange-deep);
   font-size: 11px;
   text-decoration: none;
 }
 .pop-link:hover { color: var(--cs-orange); text-decoration: underline; }
+.pop-copy {
+  background: none;
+  border: 1px solid var(--stone-line-strong);
+  border-radius: 6px;
+  padding: 4px 9px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--ink-dim);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s, color 0.15s;
+}
+.pop-copy:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
 
 /* ========== ETIQUETAS EN MAPA ========== */
 /* Chip oscuro fijo: se mantiene legible sobre cualquier fondo (calles o satélite) */
@@ -588,22 +624,50 @@ body {
 }
 
 /* ========== MARCADORES ========== */
+/* Cada capa tiene su forma: círculo, rombo o pin */
 .mk-wrap {
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  filter: drop-shadow(0 1px 2px rgba(23,21,15,0.45));
 }
-.mk-circle {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid rgba(23,21,15,0.7);
-  transition: transform 0.15s;
+.mk-shape {
   display: block;
+  width: 13px;
+  height: 13px;
+  background: var(--mk-color);
+  border: 2px solid #FFFFFF;
+  border-radius: 50%;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 0 0 1.5px rgba(23,21,15,0.25);
 }
-.mk-wrap:hover .mk-circle { transform: scale(1.4); }
+/* Rombo: infraestructura */
+.mk-diamond .mk-shape {
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+/* Pin (gota): atractivos */
+.mk-pin .mk-shape {
+  width: 15px;
+  height: 15px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  border-width: 2px;
+  box-shadow: 0 0 0 1.5px rgba(23,21,15,0.25);
+}
+.mk-pin .mk-shape::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.55);
+}
+.mk-pin { position: relative; }
+.mk-wrap:hover .mk-shape { transform: scale(1.35); }
+.mk-diamond:hover .mk-shape { transform: rotate(45deg) scale(1.35); }
+.mk-pin:hover .mk-shape { transform: rotate(-45deg) scale(1.25); }
 
 /* Clústeres */
 .mc-wrap { background: none !important; border: none !important; }
@@ -612,12 +676,20 @@ body {
   height: 100%;
   border-radius: 50%;
   background: var(--surface);
-  border: 2px solid var(--cs-orange);
+  border: 2px solid var(--mc-color);
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 3px 10px rgba(52,46,34,0.25);
   transition: transform 0.15s;
+}
+.mc-bubble::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  border: 2px dashed var(--mc-color);
+  opacity: 0.5;
 }
 .mc-bubble span {
   font-family: 'IBM Plex Mono', monospace;
@@ -626,6 +698,39 @@ body {
   color: var(--ink);
 }
 .mc-wrap:hover .mc-bubble { transform: scale(1.08); }
+
+/* ========== CONTROLES FLOTANTES ========== */
+.locate-fab {
+  background: var(--surface);
+  border: 1px solid var(--stone-line-strong);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(52,46,34,0.22);
+}
+.locate-fab a {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: var(--ink) !important;
+  background: var(--surface) !important;
+}
+.locate-fab a:hover { background: var(--surface-hover) !important; color: var(--cs-orange-deep) !important; }
+
+.leaflet-coords {
+  background: rgba(23,21,15,0.78);
+  color: #F4EFE6;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  padding: 4px 9px;
+  border-radius: 6px;
+  margin-bottom: 2px;
+  pointer-events: none;
+  backdrop-filter: blur(2px);
+  white-space: nowrap;
+}
 
 /* Controles Leaflet */
 .leaflet-control-zoom a {
