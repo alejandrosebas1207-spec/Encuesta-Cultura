@@ -311,27 +311,30 @@ function initMap() {
     if (el) el.textContent = 'lat —, lon —';
   });
 
-  // Mapa base: una sola capa de calles coloreada (rápida, con nombres
-  // incluidos, sin API key) en claro, y Esri Dark Gray en modo oscuro.
-  // Antes eran 3 capas de satélite Esri → pesado y borroso en móvil.
-  lightBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-    attribution: 'Tiles &copy; Esri',
+  // Mapa base: OpenStreetMap Standard, una sola capa de calles coloreada con
+  // nombres incluidos, gratis y sin API key, llega a zoom 19 en todo Quito.
+  // (Esri World_Street_Map no publica z18-19 en esta zona: muestra
+  //  "Map data not yet available", por eso ya no se usa.)
+  lightBase = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    subdomains: 'abc',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     maxZoom: 19,
     maxNativeZoom: 19,
     updateWhenIdle: false, // carga teselas durante el gesto (zoom/pan): nada de borroso "colgado"
     keepBuffer: 4         // pre-carga algo de margen alrededor: menos cortes al mover
   });
-  // En modo oscuro usamos la variante "Dark Gray Canvas" de Esri: calles y
-  // nombres visibles sobre fondo gris oscuro (2 capas ligeras, sin filtros CSS)
+  // En modo oscuro: Esri Dark Gray Canvas (calles y nombres visibles sobre
+  // fondo gris oscuro). Si llegara a fallar en alguna zona, el modo oscuro
+  // seguiría funcionando con la capa clara bajo un filtro CSS (fallback).
   darkBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
     maxZoom: 19,
-    maxNativeZoom: 19,
+    maxNativeZoom: 17,
     updateWhenIdle: false,
     keepBuffer: 4
   });
   darkRef = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
     maxZoom: 19,
-    maxNativeZoom: 19,
+    maxNativeZoom: 17,
     attribution: 'Tiles &copy; Esri',
     updateWhenIdle: false,
     keepBuffer: 4
