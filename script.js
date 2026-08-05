@@ -66,7 +66,7 @@ let markerIndex = [];
 let layerMasterState = {};   // clave: layerKey -> boolean (activada/desactivada)
 let categoryState = {};      // clave: "layerKey::tipo" -> boolean
 let labelsOn = false;
-let map, baseLight, baseSat, satLabels;
+let map, baseLight, baseSat, satRoads, satLabels;
 
 // Funciones auxiliares
 function resolveColor(v) {
@@ -91,8 +91,12 @@ function shapeIconHtml(shape, hex, size = 12) {
    INICIALIZACIÓN DEL MAPA
    ================================================================ */
 function initMap() {
-  map = L.map('map', { zoomControl: false, minZoom: 11, maxZoom: 19 })
-      .setView([-0.19, -78.49], 12);
+  map = L.map('map', {
+    zoomControl: false,
+    minZoom: 11,
+    maxZoom: 19,
+    preferCanvas: true    // renderiza vectores en canvas: mucho más fluido en gama baja/móvil
+  }).setView([-0.19, -78.49], 12);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
   L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(map);
 
@@ -106,10 +110,18 @@ function initMap() {
     attribution: 'Tiles &copy; Esri',
     maxZoom: 19
   });
-  satLabels = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd',
-    maxZoom: 20,
-    pane: 'shadowPane'
+  // Antes se usaban las etiquetas de CartoDB Voyager (pensadas para fondo claro) sobre
+  // la imagen satelital: por eso los nombres de calles casi no se veían. Esri publica
+  // capas de "Reference" hechas específicamente para superponerse sobre World_Imagery,
+  // con halo blanco y buen contraste: una de vías y otra de límites/nombres de lugares.
+  satRoads = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    className: 'sat-reference-layer'
+  });
+  satLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    attribution: 'Tiles &copy; Esri',
+    className: 'sat-reference-layer'
   });
 
   baseLight.addTo(map);
@@ -121,11 +133,13 @@ function initMap() {
       this.classList.add('active');
       if (this.dataset.base === 'light') {
         map.removeLayer(baseSat);
+        map.removeLayer(satRoads);
         map.removeLayer(satLabels);
         baseLight.addTo(map);
       } else {
         map.removeLayer(baseLight);
         baseSat.addTo(map);
+        satRoads.addTo(map);
         satLabels.addTo(map);
       }
     });
@@ -136,7 +150,8 @@ function initMap() {
     map.locate({ setView: true, maxZoom: 16 });
   });
   map.on('locationfound', (e) => {
-    L.circleMarker(e.latlng, { radius: 6, color: '#C9A227', fillColor: '#C9A227', fillOpacity: 0.8 })
+    const accent = resolveColor('var(--gold)');
+    L.circleMarker(e.latlng, { radius: 6, color: accent, fillColor: accent, fillOpacity: 0.8 })
       .addTo(map)
       .bindPopup('¡Estás aquí!');
   });
@@ -144,8 +159,13 @@ function initMap() {
     alert('No se pudo obtener tu ubicación. Asegúrate de dar permisos de geolocalización.');
   });
 
-  // Al hacer zoom, actualizar etiquetas
-  map.on('zoomend', updateLabels);
+  // Al hacer zoom, actualizar etiquetas (con debounce: en pinch-zoom en móvil
+  // "zoomend" puede dispararse muy seguido, y updateLabels recorre todos los puntos)
+  let labelUpdateTimer = null;
+  map.on('zoomend', () => {
+    clearTimeout(labelUpdateTimer);
+    labelUpdateTimer = setTimeout(updateLabels, 80);
+  });
 }
 
 /* ================================================================
@@ -267,7 +287,7 @@ function buildSidebar() {
     const head = document.createElement('div');
     head.className = 'layer-head';
     head.innerHTML = `
-      <span class="lh-shape">${shapeIconHtml(layer.shape, '#C9A227', 13)}</span>
+      <span class="lh-shape">${shapeIconHtml(layer.shape, resolveColor('var(--gold)'), 13)}</span>
       <div class="lh-title">
         <div class="lh-name">${layer.title}</div>
         <div class="lh-count">${layer.total} sitios</div>
@@ -533,39 +553,45 @@ function initSearch() {
   const input = document.getElementById('search');
   const results = document.getElementById('search-results');
 
+  let searchTimer = null;
   input.addEventListener('input', () => {
-    const q = input.value.trim().toLowerCase();
-    if (q.length < 2) {
-      results.classList.remove('show');
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      const q = input.value.trim().toLowerCase();
+      if (q.length < 2) {
+        results.classList.remove('show');
+        results.innerHTML = '';
+        return;
+      }
+      const matches = allPoints.filter(p => p.nombre.toLowerCase().includes(q)).slice(0, 12);
       results.innerHTML = '';
-      return;
-    }
-    const matches = allPoints.filter(p => p.nombre.toLowerCase().includes(q)).slice(0, 12);
-    results.innerHTML = '';
-    if (matches.length === 0) {
-      results.innerHTML = '<div class="sr-empty">Sin resultados</div>';
-    } else {
-      matches.forEach(p => {
-        const layer = LAYER_DEFS[p.layer];
-        const meta = layer.cats[p.tipo];
-        const el = document.createElement('div');
-        el.className = 'sr-item';
-        el.innerHTML = `
-          <span class="sr-shape">${shapeIconHtml(layer.shape, meta.hex, 10)}</span>
-          <span class="sr-name">${escapeHtml(p.nombre)}</span>
-          <span class="sr-layer">${layer.title.split(' ')[0]}</span>
-        `;
-        el.addEventListener('click', () => {
-          map.setView([p.lat, p.lon], 17, { animate: true });
-          const found = markerIndex.find(item => item.p === p);
-          if (found) setTimeout(() => found.marker.openPopup(), 350);
-          results.classList.remove('show');
-          input.value = p.nombre;
+      if (matches.length === 0) {
+        results.innerHTML = '<div class="sr-empty">Sin resultados</div>';
+      } else {
+        const frag = document.createDocumentFragment();
+        matches.forEach(p => {
+          const layer = LAYER_DEFS[p.layer];
+          const meta = layer.cats[p.tipo];
+          const el = document.createElement('div');
+          el.className = 'sr-item';
+          el.innerHTML = `
+            <span class="sr-shape">${shapeIconHtml(layer.shape, meta.hex, 10)}</span>
+            <span class="sr-name">${escapeHtml(p.nombre)}</span>
+            <span class="sr-layer">${layer.title.split(' ')[0]}</span>
+          `;
+          el.addEventListener('click', () => {
+            map.setView([p.lat, p.lon], 17, { animate: true });
+            const found = markerIndex.find(item => item.p === p);
+            if (found) setTimeout(() => found.marker.openPopup(), 350);
+            results.classList.remove('show');
+            input.value = p.nombre;
+          });
+          frag.appendChild(el);
         });
-        results.appendChild(el);
-      });
-    }
-    results.classList.add('show');
+        results.appendChild(frag);
+      }
+      results.classList.add('show');
+    }, 120);
   });
 
   input.addEventListener('focus', () => {
