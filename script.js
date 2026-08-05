@@ -67,7 +67,7 @@ const LAYER_DEFS = {
 let allPoints = [];
 let markerIndex = [];
 let categoryState = {};      // clave: "layerKey::tipo" -> boolean
-let labelsOn = false;
+let labelsOn = true; // etiquetas visibles por defecto (es un mapa de campo: los nombres deben leerse sin tocar)
 let map, baseProviders, baseLayer = null, baseTheme = 'light', baseIdx = 0, baseFails = 0, baseFailTimer = null;
 let userLoc = null; // última ubicación conocida del encuestador
 
@@ -132,6 +132,10 @@ function assignParroquias() {
 function buildParroquiaLayer() {
   if (!parroquiasGeo || parroquiasLayer) return;
 
+  // En escritorio (hay hover) los polígonos son clicables; en móvil/táctil NO:
+  // un toque "fallido" en el mapa caería sobre el polígono y haría saltar el mapa
+  const hasHover = window.matchMedia('(hover: hover)').matches;
+
   const line = resolveColor('var(--parr-line)');
   const hover = resolveColor('var(--parr-line-hover)');
   const fill = resolveColor('var(--parr-fill)');
@@ -143,10 +147,11 @@ function buildParroquiaLayer() {
       opacity: 0.85,
       fillColor: fill,
       fillOpacity: 0.06,
-      interactive: true
+      interactive: hasHover
     }),
     onEachFeature: (feature, layer) => {
       const name = feature.properties.dpa_despar;
+      if (!hasHover) return; // en móvil: solo dibujar límites, sin clics que salten el mapa
       layer.on({
         click: () => {
           const sel = document.getElementById('parroquia-filter');
@@ -453,9 +458,10 @@ async function loadData() {
       });
       Object.keys(layer.cats).forEach(k => {
         layer.cats[k].count = counts[k] || 0;
-        // Umbral de zoom para etiquetas (bajos a propósito: el mapa es referencial para encuestadores)
+        // Umbral de zoom para etiquetas: bajos a propósito, el mapa es
+        // referencial para encuestadores y debe leerse sin tocar cada punto
         const c = layer.cats[k].count;
-        layer.cats[k].labelZoom = c > 200 ? 15 : c > 90 ? 14 : c > 40 ? 13 : c > 10 ? 12 : 11;
+        layer.cats[k].labelZoom = c > 200 ? 14 : c > 90 ? 13 : c > 40 ? 12 : c > 10 ? 11 : 10;
       });
       layer.total = layer.points.length;
     });
@@ -589,24 +595,26 @@ function createMarkers() {
   Object.values(LAYER_DEFS).forEach(layer => {
     // Crear cluster group
     layer.cluster = L.markerClusterGroup({
-      maxClusterRadius: 85,
-      disableClusteringAtZoom: 18,
+      maxClusterRadius: 90,
+      disableClusteringAtZoom: 17,
       spiderfyOnMaxZoom: true,
       showCoverageOnHover: false,
       zoomToBoundsOnClick: true,
       chunkedLoading: true,
+      chunkInterval: 60,     // carga los puntos por tandas: arranque rápido en móvil
       animate: false,
       animateAddingMarkers: false,
       iconCreateFunction: makeClusterIconFn(layer.key)
     });
 
-    // Crear marcadores
+    // Crear marcadores (popups a demanda: bindear 400+ popups al inicio
+    // hace lenta la carga en móviles; se arma solo al tocar el punto)
     const isTouch = window.matchMedia('(pointer: coarse)').matches;
     layer.points.forEach(p => {
       const meta = layer.cats[p.tipo];
       if (!meta) return; // seguridad
       const shape = layer.shape;
-      const size = shape === 'pin' ? (isTouch ? 28 : 24) : (isTouch ? 19 : 16);
+      const size = shape === 'pin' ? (isTouch ? 34 : 24) : (isTouch ? 26 : 16);
       const icon = L.divIcon({
         html: `<div class="mk-wrap mk-${shape}" style="--mk-color:${meta.hex}">
           <span class="mk-shape"></span>
@@ -616,18 +624,22 @@ function createMarkers() {
         iconAnchor: [size / 2, shape === 'pin' ? size : size / 2]
       });
       const marker = L.marker([p.lat, p.lon], { icon });
-      marker.bindPopup(`
-        <div class="pop-eyebrow">${layer.title}</div>
-        <div class="pop-cat">${shapeIconHtml(layer.shape, meta.hex, 9)} ${meta.label}</div>
-        <div class="pop-name">${escapeHtml(p.nombre)}</div>
-        ${p.parroquia ? `<div class="pop-parr">📍 ${escapeHtml(p.parroquia)}</div>` : ''}
-        <div class="pop-coords">${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}</div>
-        <div class="pop-dist" data-lat="${p.lat}" data-lon="${p.lon}"></div>
-        <div class="pop-link-row">
-          <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}" target="_blank" rel="noopener" class="pop-link">🧭 Cómo llegar →</a>
-          <button class="pop-copy" data-copy="${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}">Copiar coords</button>
-        </div>
-      `, { closeButton: true, maxWidth: 260 });
+      marker.on('click', () => {
+        if (!marker.isPopupOpen()) {
+          marker.bindPopup(`
+            <div class="pop-eyebrow">${layer.title}</div>
+            <div class="pop-cat">${shapeIconHtml(layer.shape, meta.hex, 9)} ${meta.label}</div>
+            <div class="pop-name">${escapeHtml(p.nombre)}</div>
+            ${p.parroquia ? `<div class="pop-parr">📍 ${escapeHtml(p.parroquia)}</div>` : ''}
+            <div class="pop-coords">${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}</div>
+            <div class="pop-dist" data-lat="${p.lat}" data-lon="${p.lon}"></div>
+            <div class="pop-link-row">
+              <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}" target="_blank" rel="noopener" class="pop-link">🧭 Cómo llegar →</a>
+              <button class="pop-copy" data-copy="${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}">Copiar coords</button>
+            </div>
+          `, { closeButton: true, maxWidth: 260 }).openPopup();
+        }
+      });
       markerIndex.push({ p, marker, layer, tooltipOpen: false, visible: false });
     });
 
@@ -655,7 +667,7 @@ function makeClusterIconFn(layerKey) {
 }
 
 // ===== Sectores de referencia: un punto por parroquia =====
-const SECTOR_LABEL_ZOOM = 12;
+const SECTOR_LABEL_ZOOM = 10; // los nombres de los sectores se ven desde el primer acercamiento
 let sectorsOn = true;
 let sectorLayer = null;
 let sectorItems = []; // { marker, name, tooltipOpen }
@@ -767,7 +779,10 @@ function updateLabels() {
     const sk = item.layer.key + '::' + item.p.tipo;
     const meta = item.layer.cats[item.p.tipo];
     const active = categoryState[sk] && passesParroquiaFilter(item.p);
-    const shouldLabel = active && labelsOn && zoom >= meta.labelZoom;
+    // Si el marcador está agrupado en un clúster no se ve en pantalla:
+    // no gastar recursos en su etiqueta (se arma al desagruparse)
+    const clustered = item.marker._parent && item.marker._parent !== item.layer.cluster;
+    const shouldLabel = active && labelsOn && !clustered && zoom >= meta.labelZoom;
     if (shouldLabel && !item.tooltipOpen) {
       item.marker.bindTooltip(item.p.nombre, {
         permanent: true,
@@ -826,7 +841,9 @@ function restoreState() {
     labelsOn = JSON.parse(labelsSaved);
     document.getElementById('toggle-labels').checked = labelsOn;
   } else {
-    labelsOn = false;
+    labelsOn = true; // por defecto los nombres se ven en el mapa
+    const chk = document.getElementById('toggle-labels');
+    if (chk) chk.checked = true;
   }
 
   // Restaurar sectores de referencia (por defecto activos)
