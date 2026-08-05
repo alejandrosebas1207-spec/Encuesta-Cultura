@@ -2,9 +2,9 @@
    CARGA DE DATOS DESDE GEOJSON
    ================================================================ */
 const DATA_FILES = {
-  espacios: 'data/Espacios Culturales.geojson',
-  infra: 'data/Infraestructura Cultural.geojson',
-  atractivos: 'data/Atractivo Turistico.geojson'
+  espacios: 'data/Espacios_Culturales.geojson',
+  infra: 'data/Infraestructura_Cultural.geojson',
+  atractivos: 'data/Atractivo_Turistico.geojson'
 };
 
 // Definición de capas y categorías (se llenan con los datos cargados)
