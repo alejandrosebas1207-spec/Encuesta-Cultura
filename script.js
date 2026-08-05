@@ -65,7 +65,6 @@ const LAYER_DEFS = {
 // Estado global
 let allPoints = [];
 let markerIndex = [];
-let layerMasterState = {};   // clave: layerKey -> boolean (activada/desactivada)
 let categoryState = {};      // clave: "layerKey::tipo" -> boolean
 let labelsOn = false;
 let map, baseLight, baseSat, satRoads, satLabels;
@@ -475,16 +474,15 @@ async function loadData() {
     buildParroquiaLayer();
     buildParroquiaSelect();
 
-    // Inicializar estado de capas y categorías
+    // Inicializar estado de categorías
     Object.keys(LAYER_DEFS).forEach(key => {
-      layerMasterState[key] = true; // por defecto activas
       Object.keys(LAYER_DEFS[key].cats).forEach(tipo => {
         categoryState[key + '::' + tipo] = true;
       });
     });
 
-    // Construir sidebar
-    buildSidebar();
+    // Construir chips de categorías
+    buildChips();
 
     // Crear marcadores y clusters
     createMarkers();
@@ -516,126 +514,38 @@ async function loadData() {
 }
 
 /* ================================================================
-   CONSTRUCCIÓN DEL SIDEBAR (capas y categorías)
+   CONSTRUCCIÓN DE CHIPS DE CATEGORÍAS (filtro plano)
    ================================================================ */
-function buildSidebar() {
-  const root = document.getElementById('layers-root');
+function buildChips() {
+  const root = document.getElementById('cats-root');
   root.innerHTML = '';
 
   Object.values(LAYER_DEFS).forEach(layer => {
-    const block = document.createElement('div');
-    block.className = 'layer-block' + (layer.defaultOpen ? ' open' : '');
-    block.dataset.layer = layer.key;
-
-    // Cabecera
-    const head = document.createElement('div');
-    head.className = 'layer-head';
-    head.innerHTML = `
-      <span class="lh-shape">${shapeIconHtml(layer.shape, resolveColor('var(--gold)'), 13)}</span>
-      <div class="lh-title">
-        <div class="lh-name">${layer.title}</div>
-        <div class="lh-count">${layer.total} sitios</div>
-      </div>
-      <label class="switch" onclick="event.stopPropagation()">
-        <input type="checkbox" checked data-layer-toggle="${layer.key}">
-        <span class="switch-track"></span>
-      </label>
-      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>
-    `;
-    head.addEventListener('click', (e) => {
-      if (e.target.closest('.switch')) return;
-      block.classList.toggle('open');
-      // Guardar estado de apertura
-      localStorage.setItem('layerOpen_' + layer.key, JSON.stringify(block.classList.contains('open')));
-    });
-    block.appendChild(head);
-
-    // Cuerpo
-    const body = document.createElement('div');
-    body.className = 'layer-body';
-    const inner = document.createElement('div');
-    inner.className = 'layer-body-inner';
-
-    // Categorías
     Object.entries(layer.cats)
       .sort((a, b) => b[1].count - a[1].count)
       .forEach(([tipo, meta]) => {
         const sk = layer.key + '::' + tipo;
-        const row = document.createElement('div');
-        row.className = 'cat-item checked';
-        row.dataset.sk = sk;
-        row.style.setProperty('--cat-color', meta.hex);
-        row.innerHTML = `
-          <div class="cat-checkbox" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2"><path d="M20 6 9 17l-5-5"/></svg>
-          </div>
-          <span class="cat-shape" aria-hidden="true">${shapeIconHtml(layer.shape, meta.hex, 11)}</span>
-          <span class="cat-label">${meta.label}</span>
-          <span class="cat-count">${meta.count}</span>
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'chip checked';
+        chip.dataset.sk = sk;
+        chip.style.setProperty('--chip-color', meta.hex);
+        chip.setAttribute('role', 'switch');
+        chip.setAttribute('aria-checked', 'true');
+        chip.innerHTML = `
+          <span class="chip-shape" aria-hidden="true">${shapeIconHtml(layer.shape, meta.hex, 11)}</span>
+          <span class="chip-label">${meta.label}</span>
+          <span class="chip-count">${meta.count}</span>
         `;
-        row.setAttribute('role', 'checkbox');
-        row.setAttribute('aria-checked', 'true');
-        row.setAttribute('tabindex', '0');
-        row.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            row.click();
-          }
-        });
-        row.addEventListener('click', () => {
+        chip.addEventListener('click', () => {
           categoryState[sk] = !categoryState[sk];
-          row.classList.toggle('checked', categoryState[sk]);
-          row.setAttribute('aria-checked', String(categoryState[sk]));
+          chip.classList.toggle('checked', categoryState[sk]);
+          chip.setAttribute('aria-checked', String(categoryState[sk]));
           localStorage.setItem('catState_' + sk, JSON.stringify(categoryState[sk]));
           refreshMarkers();
         });
-        inner.appendChild(row);
+        root.appendChild(chip);
       });
-
-    // Botones "Todas" / "Ninguna"
-    const actions = document.createElement('div');
-    actions.className = 'cat-actions';
-    actions.innerHTML = `
-      <button class="link-btn" data-act="all">Todas</button>
-      <button class="link-btn" data-act="none">Ninguna</button>
-    `;
-    actions.querySelector('[data-act="all"]').addEventListener('click', () => {
-      Object.keys(layer.cats).forEach(t => {
-        const sk = layer.key + '::' + t;
-        categoryState[sk] = true;
-        localStorage.setItem('catState_' + sk, JSON.stringify(true));
-      });
-      inner.querySelectorAll('.cat-item').forEach(el => {
-        el.classList.add('checked');
-        el.setAttribute('aria-checked', 'true');
-      });
-      refreshMarkers();
-    });
-    actions.querySelector('[data-act="none"]').addEventListener('click', () => {
-      Object.keys(layer.cats).forEach(t => {
-        const sk = layer.key + '::' + t;
-        categoryState[sk] = false;
-        localStorage.setItem('catState_' + sk, JSON.stringify(false));
-      });
-      inner.querySelectorAll('.cat-item').forEach(el => {
-        el.classList.remove('checked');
-        el.setAttribute('aria-checked', 'false');
-      });
-      refreshMarkers();
-    });
-    inner.appendChild(actions);
-    body.appendChild(inner);
-    block.appendChild(body);
-    root.appendChild(block);
-
-    // Evento toggle de capa (switch)
-    const chk = block.querySelector('[data-layer-toggle]');
-    chk.addEventListener('change', function() {
-      layerMasterState[this.dataset.layerToggle] = this.checked;
-      block.classList.toggle('off', !this.checked);
-      localStorage.setItem('layerMaster_' + this.dataset.layerToggle, JSON.stringify(this.checked));
-      refreshMarkers();
-    });
   });
 }
 
@@ -685,7 +595,7 @@ function createMarkers() {
           <button class="pop-copy" data-copy="${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}">Copiar coords</button>
         </div>
       `, { closeButton: true, maxWidth: 260 });
-      markerIndex.push({ p, marker, layer, tooltipOpen: false });
+      markerIndex.push({ p, marker, layer, tooltipOpen: false, visible: false });
     });
 
     map.addLayer(layer.cluster);
@@ -716,14 +626,17 @@ function makeClusterIconFn(layerKey) {
    ================================================================ */
 function refreshMarkers() {
   Object.values(LAYER_DEFS).forEach(layer => {
-    layer.cluster.clearLayers();
-    if (!layerMasterState[layer.key]) return;
-    const toAdd = markerIndex
-      .filter(item => item.layer === layer &&
-        categoryState[layer.key + '::' + item.p.tipo] &&
-        passesParroquiaFilter(item.p))
-      .map(item => item.marker);
-    layer.cluster.addLayers(toAdd);
+    const toAdd = [];
+    const toRemove = [];
+    markerIndex.forEach(item => {
+      if (item.layer !== layer) return;
+      const visible = categoryState[layer.key + '::' + item.p.tipo] && passesParroquiaFilter(item.p);
+      if (visible && !item.visible) toAdd.push(item.marker);
+      else if (!visible && item.visible) toRemove.push(item.marker);
+      item.visible = visible;
+    });
+    if (toRemove.length) layer.cluster.removeLayers(toRemove);
+    if (toAdd.length) layer.cluster.addLayers(toAdd);
   });
   updateVisibleCount();
   updateLabels();
@@ -737,7 +650,7 @@ function updateLabels() {
   markerIndex.forEach(item => {
     const sk = item.layer.key + '::' + item.p.tipo;
     const meta = item.layer.cats[item.p.tipo];
-    const active = layerMasterState[item.layer.key] && categoryState[sk] && passesParroquiaFilter(item.p);
+    const active = categoryState[sk] && passesParroquiaFilter(item.p);
     const shouldLabel = active && labelsOn && zoom >= meta.labelZoom;
     if (shouldLabel && !item.tooltipOpen) {
       item.marker.bindTooltip(item.p.nombre, {
@@ -761,7 +674,7 @@ function updateVisibleCount() {
   let visible = 0;
   markerIndex.forEach(item => {
     const sk = item.layer.key + '::' + item.p.tipo;
-    if (layerMasterState[item.layer.key] && categoryState[sk] && passesParroquiaFilter(item.p)) visible++;
+    if (categoryState[sk] && passesParroquiaFilter(item.p)) visible++;
   });
   document.getElementById('stats-visible').textContent = visible.toLocaleString('es-EC');
 }
@@ -770,28 +683,15 @@ function updateVisibleCount() {
    PERSISTENCIA (localStorage)
    ================================================================ */
 function restoreState() {
-  // Restaurar capas
-  Object.keys(LAYER_DEFS).forEach(key => {
-    const saved = localStorage.getItem('layerMaster_' + key);
-    if (saved !== null) {
-      const val = JSON.parse(saved);
-      layerMasterState[key] = val;
-      const chk = document.querySelector(`[data-layer-toggle="${key}"]`);
-      if (chk) chk.checked = val;
-      const block = document.querySelector(`.layer-block[data-layer="${key}"]`);
-      if (block) block.classList.toggle('off', !val);
-    }
-  });
-
   // Restaurar categorías
   Object.keys(categoryState).forEach(sk => {
     const saved = localStorage.getItem('catState_' + sk);
     if (saved !== null) {
       categoryState[sk] = JSON.parse(saved);
-      const row = document.querySelector(`.cat-item[data-sk="${sk}"]`);
-      if (row) {
-        row.classList.toggle('checked', categoryState[sk]);
-        row.setAttribute('aria-checked', String(categoryState[sk]));
+      const chip = document.querySelector(`.chip[data-sk="${sk}"]`);
+      if (chip) {
+        chip.classList.toggle('checked', categoryState[sk]);
+        chip.setAttribute('aria-checked', String(categoryState[sk]));
       }
     }
   });
@@ -811,18 +711,6 @@ function restoreState() {
   } else {
     labelsOn = false;
   }
-
-  // Restaurar apertura de capas
-  Object.values(LAYER_DEFS).forEach(layer => {
-    const saved = localStorage.getItem('layerOpen_' + layer.key);
-    if (saved !== null) {
-      const open = JSON.parse(saved);
-      const block = document.querySelector(`.layer-block[data-layer="${layer.key}"]`);
-      if (block) {
-        block.classList.toggle('open', open);
-      }
-    }
-  });
 
   // Aplicar cambios a marcadores
   refreshMarkers();
