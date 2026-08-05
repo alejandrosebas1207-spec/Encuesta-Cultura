@@ -94,6 +94,7 @@
         <!-- Geolocalización -->
         <div class="sec">
           <button id="locate-btn" class="btn-primary">📍 Mi ubicación</button>
+          <button id="help-btn" class="btn-ghost">❓ ¿Cómo se usa?</button>
         </div>
       </div>
 
@@ -118,6 +119,35 @@
 
   <!-- Fondo oscuro al abrir el panel en móvil -->
   <div id="backdrop" aria-hidden="true"></div>
+
+  <!-- Guía de uso (primer uso y botón de ayuda) -->
+  <div id="tour" class="tour" role="dialog" aria-modal="true" aria-label="Guía de uso" hidden>
+    <div class="tour-card">
+      <div class="tour-steps">
+        <div class="tour-step active">
+          <div class="tour-emoji">📍</div>
+          <h3>Ubícate en el mapa</h3>
+          <p>Presiona <b>Mi ubicación</b> para centrar el mapa donde estás. Los puntos rojos con nombre son los <b>sectores de referencia</b> de cada parroquia.</p>
+        </div>
+        <div class="tour-step">
+          <div class="tour-emoji">👆</div>
+          <h3>Toca un punto para ver el lugar</h3>
+          <p>Cada punto es un espacio cultural. Al tocarlo verás su <b>nombre, parroquia, distancia y botón para llegar</b>.</p>
+        </div>
+        <div class="tour-step">
+          <div class="tour-emoji">🔍</div>
+          <h3>Filtra y busca</h3>
+          <p>Usa <b>Buscar</b> para encontrar un lugar por nombre, o elige una <b>parroquia</b> para ver solo sus puntos. Los colores de la izquierda activan o apagan tipos de lugares.</p>
+        </div>
+      </div>
+      <div class="tour-nav">
+        <button id="tour-prev" class="btn-ghost" hidden>Atrás</button>
+        <span id="tour-dots"></span>
+        <button id="tour-next" class="btn-primary">Siguiente</button>
+      </div>
+      <button id="tour-close" class="tour-close" aria-label="Cerrar guía">✕</button>
+    </div>
+  </div>
 
   <!-- Cargando -->
   <div id="loading" role="status" aria-live="polite">

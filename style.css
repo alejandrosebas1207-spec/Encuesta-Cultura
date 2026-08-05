@@ -527,6 +527,23 @@ html.dark .sec-tip {
 }
 .btn-primary:hover { background: var(--cs-orange-bright); }
 
+.btn-ghost {
+  background: var(--surface-alt);
+  border: 1px solid var(--stone-line-strong);
+  border-radius: 8px;
+  padding: 11px 16px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--ink-dim);
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.2s, color 0.2s;
+  touch-action: manipulation;
+}
+.btn-ghost:hover { background: var(--surface-hover); color: var(--ink); }
+#help-btn { margin-top: 8px; }
+
 /* Etiquetas (toggle) */
 .label-toggle-row {
   display: flex;
@@ -881,6 +898,86 @@ html.dark .mc-bubble {
 #backdrop.show {
   opacity: 1;
   pointer-events: auto;
+}
+
+/* ========== GUÍA DE USO (TOUR) ========== */
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  background: rgba(17,17,19,0.55);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 14px;
+}
+.tour[hidden] { display: none; }
+.tour-card {
+  width: 100%;
+  max-width: 460px;
+  background: var(--surface);
+  border: 1px solid var(--stone-line-strong);
+  border-radius: 18px;
+  padding: 26px 22px 18px;
+  position: relative;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.5);
+}
+.tour-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 6px;
+  line-height: 1;
+}
+.tour-close:hover { color: var(--cs-red); }
+.tour-steps { min-height: 170px; }
+.tour-step { display: none; }
+.tour-step.active { display: block; }
+.tour-emoji {
+  font-size: 30px;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+.tour-step h3 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+.tour-step p {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-dim);
+  margin: 0;
+}
+.tour-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 18px;
+}
+.tour-dots {
+  display: flex;
+  gap: 6px;
+}
+.tour-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--stone-line-strong);
+  transition: background 0.2s, transform 0.2s;
+}
+.tour-dots span.on {
+  background: var(--cs-red);
+  transform: scale(1.25);
 }
 
 /* ========== CARGA ========== */

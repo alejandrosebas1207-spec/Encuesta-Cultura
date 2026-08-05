@@ -1051,6 +1051,68 @@ function initTheme() {
 }
 
 /* ================================================================
+   GUÍA DE USO (TOUR) — para que los encuestadores entiendan la app
+   sin explicaciones previas. Se muestra la primera vez y desde "?"
+   ================================================================ */
+function initTour() {
+  const tour = document.getElementById('tour');
+  const btnHelp = document.getElementById('help-btn');
+  const btnClose = document.getElementById('tour-close');
+  if (!tour || !btnHelp || !btnClose) return;
+
+  let idx = 0;
+  const steps = [...tour.querySelectorAll('.tour-step')];
+  const nextBtn = document.getElementById('tour-next');
+  const prevBtn = document.getElementById('tour-prev');
+  const dots = document.getElementById('tour-dots');
+
+  // Puntos de progreso
+  steps.forEach((_, i) => {
+    const d = document.createElement('span');
+    if (i === 0) d.className = 'on';
+    dots.appendChild(d);
+  });
+  const dotEls = [...dots.children];
+
+  function show(i) {
+    idx = Math.max(0, Math.min(steps.length - 1, i));
+    steps.forEach((s, j) => s.classList.toggle('active', j === idx));
+    dotEls.forEach((d, j) => d.classList.toggle('on', j === idx));
+    prevBtn.hidden = idx === 0;
+    nextBtn.textContent = idx === steps.length - 1 ? '¡Listo!' : 'Siguiente';
+    // En el primer uso obligamos a recorrer los 3 pasos; desde "?" se puede saltar
+    btnClose.hidden = idx === 0 && btnHelp.getAttribute('data-force') === '1';
+  }
+
+  function open() { tour.hidden = false; show(0); }
+  function close() {
+    tour.hidden = true;
+    btnHelp.removeAttribute('data-force');
+    try { localStorage.setItem('tourDone', '1'); } catch (e) {}
+  }
+
+  nextBtn.addEventListener('click', () => {
+    if (idx === steps.length - 1) close();
+    else show(idx + 1);
+  });
+  prevBtn.addEventListener('click', () => show(idx - 1));
+  btnClose.addEventListener('click', close);
+  tour.addEventListener('click', (e) => { if (e.target === tour) close(); });
+
+  // Solo se abre automáticamente la primera vez
+  let done = false;
+  try { done = localStorage.getItem('tourDone') === '1'; } catch (e) {}
+  if (!done) {
+    btnHelp.setAttribute('data-force', '1');
+    setTimeout(open, 600); // después de que el mapa cargue
+  }
+  btnHelp.addEventListener('click', () => {
+    btnHelp.setAttribute('data-force', '1');
+    open();
+  });
+}
+
+/* ================================================================
    INICIO
    ================================================================ */
 document.addEventListener('DOMContentLoaded', () => {
@@ -1060,5 +1122,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initChipActions();
   initTheme();
   initSectors();
+  initTour();
   loadData(); // carga asíncrona y construye el resto
 });
