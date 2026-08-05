@@ -34,11 +34,11 @@
   --map-bg: #E8EAED;
 
   /* Límites de parroquias en el mapa */
-  --parr-line: rgba(79,126,144,0.55);
-  --parr-line-hover: var(--cs-teal);
-  --parr-line-active: var(--cs-teal);
-  --parr-fill: var(--cs-teal);
-  --parr-fill-active: rgba(79,126,144,0.28);
+  --parr-line: rgba(194,59,73,0.55);
+  --parr-line-hover: var(--cs-red);
+  --parr-line-active: var(--cs-red);
+  --parr-fill: var(--cs-red);
+  --parr-fill-active: rgba(194,59,73,0.28);
 
   /* Categorías — Espacios culturales */
   --c-multi: #B85C38;
@@ -82,11 +82,11 @@ html.dark {
   --cs-orange-deep: #F0A200;   /* en oscuro el naranja claro lee mejor */
   --cs-orange-wash: rgba(240,162,0,0.20);
   --cs-teal-wash: rgba(79,126,144,0.24);
-  --parr-line: rgba(130,180,200,0.6);
-  --parr-line-hover: #7FB4C8;
-  --parr-line-active: #7FB4C8;
-  --parr-fill: #7FB4C8;
-  --parr-fill-active: rgba(127,180,200,0.28);
+  --parr-line: rgba(224,101,111,0.6);
+  --parr-line-hover: #E0656F;
+  --parr-line-active: #E0656F;
+  --parr-fill: #E0656F;
+  --parr-fill-active: rgba(224,101,111,0.28);
 }
 
 /* Sigue la preferencia del sistema (solo si el usuario no forzó tema) */
@@ -108,11 +108,11 @@ html.dark {
     --cs-orange-deep: #F0A200;
     --cs-orange-wash: rgba(240,162,0,0.20);
     --cs-teal-wash: rgba(79,126,144,0.24);
-    --parr-line: rgba(130,180,200,0.6);
-    --parr-line-hover: #7FB4C8;
-    --parr-line-active: #7FB4C8;
-    --parr-fill: #7FB4C8;
-    --parr-fill-active: rgba(127,180,200,0.28);
+    --parr-line: rgba(224,101,111,0.6);
+    --parr-line-hover: #E0656F;
+    --parr-line-active: #E0656F;
+    --parr-fill: #E0656F;
+    --parr-fill-active: rgba(224,101,111,0.28);
   }
 }
 /* Forzado claro (gana sobre el modo oscuro del sistema) */
@@ -130,11 +130,11 @@ html.light {
   --cs-orange-deep: #A85E00;
   --cs-orange-wash: rgba(240,162,0,0.14);
   --cs-teal-wash: rgba(79,126,144,0.16);
-  --parr-line: rgba(79,126,144,0.55);
-  --parr-line-hover: var(--cs-teal);
-  --parr-line-active: var(--cs-teal);
-  --parr-fill: var(--cs-teal);
-  --parr-fill-active: rgba(79,126,144,0.28);
+  --parr-line: rgba(194,59,73,0.55);
+  --parr-line-hover: var(--cs-red);
+  --parr-line-active: var(--cs-red);
+  --parr-fill: var(--cs-red);
+  --parr-fill-active: rgba(194,59,73,0.28);
 }
 
 /* ========== RESET ========== */
