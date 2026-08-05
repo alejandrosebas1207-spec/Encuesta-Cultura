@@ -176,6 +176,7 @@ function initMap() {
    CARGA DE DATOS DESDE GEOJSON
    ================================================================ */
 async function loadData() {
+  const loadingEl = document.getElementById('loading');
   try {
     const [espacios, infra, atractivos] = await Promise.all([
       fetch(DATA_FILES.espacios).then(r => r.json()),
@@ -269,8 +270,11 @@ async function loadData() {
       updateLabels();
     });
 
+    loadingEl.classList.add('hidden');
+
   } catch (error) {
     console.error('Error cargando los datos:', error);
+    if (loadingEl) loadingEl.textContent = 'No se pudieron cargar los datos. Recarga la página o vuelve más tarde.';
     alert('No se pudieron cargar los archivos GeoJSON. Asegúrate de que estén en la carpeta "data" y sean archivos válidos.');
   }
 }
@@ -324,17 +328,28 @@ function buildSidebar() {
         const row = document.createElement('div');
         row.className = 'cat-item checked';
         row.dataset.sk = sk;
+        row.style.setProperty('--cat-color', meta.hex);
         row.innerHTML = `
-          <div class="cat-checkbox" style="border-color:${meta.hex}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="${meta.hex}" stroke-width="3.2"><path d="M20 6 9 17l-5-5"/></svg>
+          <div class="cat-checkbox" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2"><path d="M20 6 9 17l-5-5"/></svg>
           </div>
-          <span class="cat-shape">${shapeIconHtml(layer.shape, meta.hex, 11)}</span>
+          <span class="cat-shape" aria-hidden="true">${shapeIconHtml(layer.shape, meta.hex, 11)}</span>
           <span class="cat-label">${meta.label}</span>
           <span class="cat-count">${meta.count}</span>
         `;
+        row.setAttribute('role', 'checkbox');
+        row.setAttribute('aria-checked', 'true');
+        row.setAttribute('tabindex', '0');
+        row.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            row.click();
+          }
+        });
         row.addEventListener('click', () => {
           categoryState[sk] = !categoryState[sk];
           row.classList.toggle('checked', categoryState[sk]);
+          row.setAttribute('aria-checked', String(categoryState[sk]));
           localStorage.setItem('catState_' + sk, JSON.stringify(categoryState[sk]));
           refreshMarkers();
         });
@@ -354,7 +369,10 @@ function buildSidebar() {
         categoryState[sk] = true;
         localStorage.setItem('catState_' + sk, JSON.stringify(true));
       });
-      inner.querySelectorAll('.cat-item').forEach(el => el.classList.add('checked'));
+      inner.querySelectorAll('.cat-item').forEach(el => {
+        el.classList.add('checked');
+        el.setAttribute('aria-checked', 'true');
+      });
       refreshMarkers();
     });
     actions.querySelector('[data-act="none"]').addEventListener('click', () => {
@@ -363,7 +381,10 @@ function buildSidebar() {
         categoryState[sk] = false;
         localStorage.setItem('catState_' + sk, JSON.stringify(false));
       });
-      inner.querySelectorAll('.cat-item').forEach(el => el.classList.remove('checked'));
+      inner.querySelectorAll('.cat-item').forEach(el => {
+        el.classList.remove('checked');
+        el.setAttribute('aria-checked', 'false');
+      });
       refreshMarkers();
     });
     inner.appendChild(actions);
@@ -375,6 +396,7 @@ function buildSidebar() {
     const chk = block.querySelector('[data-layer-toggle]');
     chk.addEventListener('change', function() {
       layerMasterState[this.dataset.layerToggle] = this.checked;
+      block.classList.toggle('off', !this.checked);
       localStorage.setItem('layerMaster_' + this.dataset.layerToggle, JSON.stringify(this.checked));
       refreshMarkers();
     });
@@ -510,6 +532,8 @@ function restoreState() {
       layerMasterState[key] = val;
       const chk = document.querySelector(`[data-layer-toggle="${key}"]`);
       if (chk) chk.checked = val;
+      const block = document.querySelector(`.layer-block[data-layer="${key}"]`);
+      if (block) block.classList.toggle('off', !val);
     }
   });
 
@@ -521,6 +545,7 @@ function restoreState() {
       const row = document.querySelector(`.cat-item[data-sk="${sk}"]`);
       if (row) {
         row.classList.toggle('checked', categoryState[sk]);
+        row.setAttribute('aria-checked', String(categoryState[sk]));
       }
     }
   });
@@ -610,10 +635,37 @@ function initSearch() {
    COLAPSAR SIDEBAR
    ================================================================ */
 function initSidebarToggle() {
-  document.getElementById('sb-toggle').addEventListener('click', () => {
-    document.getElementById('sidebar').classList.toggle('collapsed');
+  const sidebar = document.getElementById('sidebar');
+  const btn = document.getElementById('sb-toggle');
+  const backdrop = document.getElementById('backdrop');
+  const isMobileQuery = window.matchMedia('(max-width: 760px)');
+
+  function syncCollapse() {
+    const collapsed = sidebar.classList.contains('collapsed');
+    btn.setAttribute('aria-expanded', String(!collapsed));
+    // En móvil, mostrar el fondo oscuro cuando el panel está abierto
+    backdrop.classList.toggle('show', isMobileQuery.matches && !collapsed);
+  }
+
+  btn.addEventListener('click', () => {
+    sidebar.classList.toggle('collapsed');
+    syncCollapse();
     setTimeout(() => map.invalidateSize(), 340);
   });
+
+  backdrop.addEventListener('click', () => {
+    sidebar.classList.add('collapsed');
+    syncCollapse();
+    setTimeout(() => map.invalidateSize(), 340);
+  });
+
+  isMobileQuery.addEventListener ? isMobileQuery.addEventListener('change', syncCollapse) : isMobileQuery.addListener(syncCollapse);
+
+  // En móvil arranca colapsado para dejar el mapa visible de entrada
+  if (isMobileQuery.matches && window.innerWidth <= 760) {
+    sidebar.classList.add('collapsed');
+  }
+  syncCollapse();
 }
 
 /* ================================================================

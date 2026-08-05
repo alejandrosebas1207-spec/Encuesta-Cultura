@@ -2,7 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Mapa interactivo de espacios culturales, infraestructura y atractivos turísticos de Quito.">
   <title>Mapa de Espacios Culturales · Quito · Clima Social</title>
   <meta name="theme-color" content="#F6F4EF">
   <link rel="icon" type="image/png" href="assets/favicon.png">
@@ -84,12 +85,21 @@
     </aside>
 
     <!-- Botón colapsar sidebar -->
-    <button id="sb-toggle" title="Mostrar/ocultar panel">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 18l-6-6 6-6"/></svg>
+    <button id="sb-toggle" title="Mostrar/ocultar panel" aria-label="Mostrar u ocultar panel de capas" aria-expanded="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
     </button>
 
     <!-- Mapa -->
     <div id="map"></div>
+  </div>
+
+  <!-- Fondo oscuro al abrir el panel en móvil -->
+  <div id="backdrop" aria-hidden="true"></div>
+
+  <!-- Cargando -->
+  <div id="loading" role="status" aria-live="polite">
+    <span class="loading-spinner" aria-hidden="true"></span>
+    <span>Cargando mapa…</span>
   </div>
 
   <!-- Scripts -->
