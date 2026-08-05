@@ -3,6 +3,7 @@
   color-scheme: light;
   /* Colores de marca (extraídos del logo) */
   --cs-red: #C23B49;
+  --cs-red-bright: #E05663;
   --cs-teal: #4F7E90;
   --cs-purple: #40004F;
   --cs-orange: #F0A200;
@@ -66,6 +67,8 @@
 /* Forzado por el toggle del usuario (clase .dark en <html>) */
 html.dark {
   color-scheme: dark;
+  --cs-red: #E0656F;
+  --cs-red-bright: #EF7A84;
   --bg-app: #111113;
   --surface: #19191C;
   --surface-alt: #1F1F23;
@@ -90,6 +93,8 @@ html.dark {
 @media (prefers-color-scheme: dark) {
   html:not(.light) {
     color-scheme: dark;
+    --cs-red: #E0656F;
+    --cs-red-bright: #EF7A84;
     --bg-app: #111113;
     --surface: #19191C;
     --surface-alt: #1F1F23;
@@ -251,7 +256,7 @@ body {
   font-size: 10.5px;
   letter-spacing: 1.4px;
   text-transform: uppercase;
-  color: var(--cs-orange-deep);
+  color: var(--cs-red);
   margin: 0 0 12px 0;
   display: flex;
   align-items: center;
@@ -515,7 +520,7 @@ body {
   font-family: 'Poppins', serif;
   font-size: var(--fs-num);
   font-weight: 600;
-  color: var(--cs-orange-deep);
+  color: var(--cs-red);
   line-height: 1;
 }
 .stats-label {
@@ -591,7 +596,7 @@ body {
   font-size: 10px;
   letter-spacing: 0.4px;
   text-transform: uppercase;
-  color: var(--cs-orange-deep);
+  color: var(--cs-red);
   margin-bottom: 6px;
 }
 .pop-name {
@@ -637,11 +642,11 @@ body {
 }
 .pop-link {
   display: inline-block;
-  color: var(--cs-orange-deep);
+  color: var(--cs-red);
   font-size: 11px;
   text-decoration: none;
 }
-.pop-link:hover { color: var(--cs-orange); text-decoration: underline; }
+.pop-link:hover { color: var(--cs-red-bright); text-decoration: underline; }
 .pop-copy {
   background: none;
   border: 1px solid var(--stone-line-strong);
@@ -785,7 +790,7 @@ body {
   color: var(--ink) !important;
   background: var(--surface) !important;
 }
-.locate-fab a:hover { background: var(--surface-hover) !important; color: var(--cs-orange-deep) !important; }
+.locate-fab a:hover { background: var(--surface-hover) !important; color: var(--cs-red) !important; }
 
 .leaflet-coords {
   background: rgba(23,21,15,0.78);

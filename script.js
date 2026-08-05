@@ -189,7 +189,7 @@ function buildParroquiaSelect() {
 
   const options = Object.keys(counts)
     .filter(k => k !== '__sin__')
-    .sort((a, b) => a.localeCompare(b, 'es'))
+    .sort((a, b) => counts[b] - counts[a]) // de mayor a menor cantidad de sitios
     .map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)} (${counts[k]})</option>`);
 
   if (counts['__sin__']) {
