@@ -145,7 +145,7 @@ function assignParroquias() {
 function buildParroquiaLayer() {
   if (!parroquiasGeo || parroquiasLayer) return;
 
-  // En escritorio (hay hover) los polígonos son clicables; en móvil/táctil NO:
+  // En escritorio (hay hover) los polígonos reaccionan al cursor; en móvil/táctil NO:
   // un toque "fallido" en el mapa caería sobre el polígono y haría saltar el mapa
   const hasHover = window.matchMedia('(hover: hover)').matches;
 
@@ -165,12 +165,9 @@ function buildParroquiaLayer() {
     onEachFeature: (feature, layer) => {
       const name = feature.properties.dpa_despar;
       if (!hasHover) return; // en móvil: solo dibujar límites, sin clics que salten el mapa
+      // IMPORTANTE: el polígono NO filtra al hacer clic. La parroquia solo
+      // se elige desde el panel lateral (evita filtros accidentales)
       layer.on({
-        click: () => {
-          const sel = document.getElementById('parroquia-filter');
-          if (sel) sel.value = name;
-          setParroquia(name);
-        },
         mouseover: () => {
           layer.setStyle({
             weight: 2.6,
