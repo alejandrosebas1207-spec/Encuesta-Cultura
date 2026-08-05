@@ -68,8 +68,7 @@ let allPoints = [];
 let markerIndex = [];
 let categoryState = {};      // clave: "layerKey::tipo" -> boolean
 let labelsOn = false;
-let map, lightBase, darkBase, darkRef;
-
+let map, baseProviders, baseLayer = null, baseTheme = 'light', baseIdx = 0, baseFails = 0, baseFailTimer = null;
 // Parroquias: geometrías para dibujar y estado del filtro
 let parroquiasGeo = null;       // FeatureCollection de parroquias (para dibujar)
 let parroquiasLayer = null;     // L.geoJSON añadido al mapa
@@ -311,34 +310,20 @@ function initMap() {
     if (el) el.textContent = 'lat —, lon —';
   });
 
-  // Mapa base: OpenStreetMap Standard, una sola capa de calles coloreada con
-  // nombres incluidos, gratis y sin API key, llega a zoom 19 en todo Quito.
-  // (Esri World_Street_Map no publica z18-19 en esta zona: muestra
-  //  "Map data not yet available", por eso ya no se usa.)
-  lightBase = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    subdomains: 'abc',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    maxZoom: 19,
-    maxNativeZoom: 19,
-    updateWhenIdle: false, // carga teselas durante el gesto (zoom/pan): nada de borroso "colgado"
-    keepBuffer: 4         // pre-carga algo de margen alrededor: menos cortes al mover
-  });
-  // En modo oscuro: Esri Dark Gray Canvas (calles y nombres visibles sobre
-  // fondo gris oscuro). Si llegara a fallar en alguna zona, el modo oscuro
-  // seguiría funcionando con la capa clara bajo un filtro CSS (fallback).
-  darkBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19,
-    maxNativeZoom: 17,
-    updateWhenIdle: false,
-    keepBuffer: 4
-  });
-  darkRef = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19,
-    maxNativeZoom: 17,
-    attribution: 'Tiles &copy; Esri',
-    updateWhenIdle: false,
-    keepBuffer: 4
-  });
+  // Mapa base: lista de proveedores (calles coloreadas con nombres, livianos,
+  // sin API key). Si uno falla, el mapa cambia solo al siguiente (fallback).
+  // Orden: Carto (CDN rápido en LATAM, z19 completo) → OSM Standard → Esri.
+  baseProviders = {
+    light: [
+      { name: 'carto', url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', subdomains: 'abcd', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>' },
+      { name: 'osm', url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', subdomains: 'abc', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' },
+      { name: 'esri', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', subdomains: '', attribution: 'Tiles &copy; Esri', nativeZoom: 17 }
+    ],
+    dark: [
+      { name: 'carto', url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', subdomains: 'abcd', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>' },
+      { name: 'osm', url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', subdomains: 'abc', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }
+    ]
+  };
   setBaseTheme(getDarkMode());
 
   // Geolocalización
@@ -954,23 +939,40 @@ function applyTheme(dark) {
   setBaseTheme(dark);
 }
 
-// Cambia el mapa base según el tema: una sola capa de calles en claro,
-// Dark Gray Canvas en oscuro (swap sin recargar la página)
+// Cambia el mapa base según el tema y gestiona el fallback de proveedores
 function setBaseTheme(dark) {
   if (!map || typeof map.hasLayer !== 'function') return;
-  if (dark) {
-    if (lightBase && map.hasLayer(lightBase)) map.removeLayer(lightBase);
-    if (darkBase && !map.hasLayer(darkBase)) {
-      darkBase.addTo(map);
-      darkRef.addTo(map);
+  baseTheme = dark ? 'dark' : 'light';
+  baseIdx = 0;
+  loadBase();
+}
+
+function loadBase() {
+  const list = baseProviders[baseTheme];
+  const p = list[baseIdx];
+  const layer = L.tileLayer(p.url, {
+    subdomains: p.subdomains,
+    attribution: p.attribution,
+    maxZoom: 19,
+    maxNativeZoom: p.nativeZoom || 19,
+    updateWhenIdle: false,   // carga teselas durante el gesto: nada de borroso "colgado"
+    keepBuffer: 3            // margen pre-cargado: menos cortes al mover
+  });
+  layer.on('tileerror', () => {
+    // Un error puntual puede ser normal; varios seguidos = proveedor caído → fallback
+    baseFails++;
+    clearTimeout(baseFailTimer);
+    baseFailTimer = setTimeout(() => { baseFails = 0; }, 4000);
+    if (baseFails >= 3 && baseIdx < list.length - 1) {
+      baseFails = 0;
+      baseIdx++;
+      map.removeLayer(baseLayer);
+      baseLayer = null;
+      loadBase();
     }
-  } else {
-    if (darkBase && map.hasLayer(darkBase)) {
-      map.removeLayer(darkBase);
-      map.removeLayer(darkRef);
-    }
-    if (lightBase && !map.hasLayer(lightBase)) lightBase.addTo(map);
-  }
+  });
+  baseLayer = layer;
+  layer.addTo(map);
 }
 
 function initTheme() {
