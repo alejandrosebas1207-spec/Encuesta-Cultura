@@ -29,16 +29,33 @@
         <img class="rosette" src="assets/logo-icon.png" alt="Clima Social" width="36" height="36" decoding="async" fetchpriority="high">
         <div>
           <h1>Espacios Culturales</h1>
-          <div class="sub">Mapa de campo · Quito</div>
+          <div class="sub" id="view-subtitle">Mapa de campo · Quito</div>
         </div>
       </div>
+
+      <!-- Cambio de vista: Quito (detalle local) o Ecuador (nacional) -->
+      <div class="view-switch" role="tablist" aria-label="Cambiar vista del mapa">
+        <button type="button" class="view-btn active" data-view="quito" role="tab" aria-selected="true">Quito</button>
+        <button type="button" class="view-btn" data-view="nacional" role="tab" aria-selected="false">Ecuador</button>
+      </div>
       <div class="sb-scroll">
-        <!-- Parroquia -->
-        <div class="sec">
+        <!-- Zona: parroquia (vista Quito) -->
+        <div class="sec" id="sec-parroquia">
           <p class="sec-title">Parroquia</p>
           <div class="parr-wrap">
             <select id="parroquia-filter" class="parr-select" aria-label="Filtrar por parroquia">
               <option value="">Todas las parroquias</option>
+            </select>
+            <svg class="parr-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+        </div>
+
+        <!-- Zona: provincia (vista Ecuador) -->
+        <div class="sec" id="sec-provincia" hidden>
+          <p class="sec-title">Provincia</p>
+          <div class="parr-wrap">
+            <select id="provincia-filter" class="parr-select" aria-label="Filtrar por provincia">
+              <option value="">Todas las provincias</option>
             </select>
             <svg class="parr-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
           </div>

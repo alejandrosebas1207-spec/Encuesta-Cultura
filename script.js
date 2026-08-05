@@ -5,11 +5,13 @@ const DATA_FILES = {
   espacios: 'data/Espacios_Culturales.geojson',
   infra: 'data/Infraestructura_Cultural.geojson',
   atractivos: 'data/Atractivo_Turistico.geojson',
-  refsParroquias: 'data/refs_parroquias.geojson'
+  refsParroquias: 'data/refs_parroquias.geojson',
+  nacional: 'data/Infraestructura_Nacional.geojson'
 };
 
 const PARROQUIAS_FILE = 'data/parroquias_dmq.geojson';
 const PARROQUIAS_LOOKUP_FILE = 'data/parroquias_lookup.json';
+const PROVINCIAS_FILE = 'data/provincias_ec.geojson';
 
 // Definición de capas y categorías (se llenan con los datos cargados)
 const LAYER_DEFS = {
@@ -60,6 +62,23 @@ const LAYER_DEFS = {
       "Atractivo Natural":  { label: "Atractivo natural",  color: "var(--c-atr-nat)" }
     },
     defaultOpen: false
+  },
+  nacional: {
+    key: 'nacional',
+    title: 'Infraestructura cultural nacional',
+    shape: 'diamond',
+    propNombre: 'nombre',
+    propTipo: 'categoria',
+    propProvincia: 'provincia',
+    propCanton: 'canton',
+    cats: {
+      "Espacios Escénicos":     { label: "Espacios escénicos",      color: "var(--c-escenico)" },
+      "Museos":                 { label: "Museos",                  color: "var(--c-museos)" },
+      "Bibliotecas":            { label: "Bibliotecas",             color: "var(--c-editorial)" },
+      "Archivos Históricos":    { label: "Archivos históricos",     color: "var(--c-inf-sec)" },
+      "Espacios Audiovisuales": { label: "Espacios audiovisuales",  color: "var(--c-audiovisual)" }
+    },
+    defaultOpen: true
   }
 };
 
@@ -99,6 +118,12 @@ let parroquiasLayer = null;     // L.geoJSON añadido al mapa
 let parroquiaLookup = {};       // nombre -> parroquia (join espacial precalculado)
 let parroquiaSel = '';          // parroquia seleccionada en el filtro ('' = todas)
 
+// Provincias (vista nacional) y selector de vista
+let view = 'quito';             // 'quito' | 'nacional'
+let provinciasGeo = null;       // FeatureCollection de provincias (para dibujar)
+let provinciasLayer = null;     // L.geoJSON de provincias añadido al mapa
+let provinciaSel = '';          // provincia seleccionada ('' = todas)
+
 // Funciones auxiliares
 function resolveColor(v) {
   if (!v.startsWith('var(')) return v;
@@ -131,6 +156,7 @@ function normalizeName(s) {
 // Asigna la parroquia a cada punto usando el lookup precalculado (join por nombre)
 function assignParroquias() {
   Object.values(LAYER_DEFS).forEach(layer => {
+    if (layer.key === 'nacional') return; // la capa nacional trae provincia/cantón directos
     const key = layer.key === 'espacios' ? 'Espacios_Culturales' :
                 layer.key === 'infra' ? 'Infraestructura_Cultural' : 'Atractivo_Turistico';
     const table = parroquiaLookup[key] || {};
@@ -199,40 +225,77 @@ function buildParroquiaLayer() {
   parroquiasLayer.addTo(map);
 }
 
-// Construye el <select> con las parroquias que tienen al menos un punto
-function buildParroquiaSelect() {
-  const sel = document.getElementById('parroquia-filter');
-  if (!sel) return;
-
-  // Idempotente: quitar opciones previas (conserva la primera "Todas las parroquias")
-  [...sel.querySelectorAll('option:not(:first-child)')].forEach(o => o.remove());
-
-  const counts = {};
-  allPoints.forEach(p => {
-    const key = p.parroquia || '__sin__';
-    counts[key] = (counts[key] || 0) + 1;
-  });
-
-  const options = Object.keys(counts)
-    .filter(k => k !== '__sin__')
-    .sort((a, b) => counts[b] - counts[a]) // de mayor a menor cantidad de sitios
-    .map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)} (${counts[k]})</option>`);
-
-  if (counts['__sin__']) {
-    options.push(`<option value="__sin__">Sin parroquia (${counts['__sin__']})</option>`);
-  }
-
-  sel.insertAdjacentHTML('beforeend', options.join(''));
-
-  sel.addEventListener('change', () => {
-    setParroquia(sel.value === '__sin__' ? '__sin__' : sel.value);
-    // En móvil, cerrar el panel para ver el mapa completo (ya centrado en la parroquia)
-    if (window.innerWidth <= 760) collapseSidebar();
-  });
+// Capas activas según la vista (Quito: 3 capas locales; Nacional: la capa de país)
+function activeLayers() {
+  if (view === 'nacional') return [LAYER_DEFS.nacional];
+  return [LAYER_DEFS.espacios, LAYER_DEFS.infra, LAYER_DEFS.atractivos];
+}
+function isLayerActive(layer) {
+  return view === 'nacional' ? layer.key === 'nacional' : layer.key !== 'nacional';
 }
 
-// Devuelve true si el punto pasa el filtro de parroquia
-function passesParroquiaFilter(p) {
+// Total de puntos de las capas activas (para el contador del panel)
+function totalActive() {
+  let n = 0;
+  activeLayers().forEach(layer => { n += (layer.points ? layer.points.length : 0); });
+  return n;
+}
+
+// Construye los <select>: parroquias (vista Quito) y provincias (vista Nacional)
+function buildZoneSelects() {
+  const selPar = document.getElementById('parroquia-filter');
+  const selProv = document.getElementById('provincia-filter');
+
+  // Parroquias: solo puntos locales (la capa nacional trae provincia propia)
+  if (selPar) {
+    [...selPar.querySelectorAll('option:not(:first-child)')].forEach(o => o.remove());
+    const counts = {};
+    allPoints.forEach(p => {
+      if (p.layer === 'nacional') return;
+      const key = p.parroquia || '__sin__';
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    const options = Object.keys(counts)
+      .filter(k => k !== '__sin__')
+      .sort((a, b) => counts[b] - counts[a])
+      .map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)} (${counts[k]})</option>`);
+    if (counts['__sin__']) {
+      options.push(`<option value="__sin__">Sin parroquia (${counts['__sin__']})</option>`);
+    }
+    selPar.insertAdjacentHTML('beforeend', options.join(''));
+    selPar.addEventListener('change', () => {
+      setParroquia(selPar.value === '__sin__' ? '__sin__' : selPar.value);
+      if (window.innerWidth <= 760) collapseSidebar();
+    });
+  }
+
+  // Provincias: de la capa nacional
+  if (selProv) {
+    [...selProv.querySelectorAll('option:not(:first-child)')].forEach(o => o.remove());
+    const counts = {};
+    allPoints.forEach(p => {
+      if (p.layer !== 'nacional') return;
+      const key = p.provincia || '__sin__';
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    const options = Object.keys(counts)
+      .filter(k => k !== '__sin__')
+      .sort((a, b) => counts[b] - counts[a])
+      .map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)} (${counts[k]})</option>`);
+    selProv.insertAdjacentHTML('beforeend', options.join(''));
+    selProv.addEventListener('change', () => {
+      setProvincia(selProv.value === '__sin__' ? '__sin__' : selProv.value);
+      if (window.innerWidth <= 760) collapseSidebar();
+    });
+  }
+}
+
+// Devuelve true si el punto pasa el filtro de su zona (parroquia o provincia)
+function passesZoneFilter(p) {
+  if (p.layer === 'nacional') {
+    if (!provinciaSel) return true;
+    return (p.provincia || '__sin__') === provinciaSel;
+  }
   if (!parroquiaSel) return true;
   const pkey = p.parroquia || '__sin__';
   return pkey === parroquiaSel;
@@ -270,6 +333,151 @@ function setParroquia(name) {
   }
   localStorage.setItem('parroquiaSel', JSON.stringify(parroquiaSel));
   refreshMarkers();
+}
+
+// Aplica la selección de provincia (vista Nacional): resalta el polígono y filtra
+function setProvincia(name) {
+  provinciaSel = name || '';
+  const sel = document.getElementById('provincia-filter');
+  if (sel && sel.value !== provinciaSel) sel.value = provinciaSel;
+
+  buildChips();
+
+  if (provinciasLayer) {
+    provinciasLayer.eachLayer(l => {
+      const lname = l.feature.properties.name;
+      if (lname === provinciaSel) {
+        l.setStyle({
+          weight: 3.4,
+          color: resolveColor('var(--prov-line-active)'),
+          fillColor: resolveColor('var(--prov-fill-active)'),
+          fillOpacity: 0.22
+        });
+        l.bringToFront();
+      } else {
+        provinciasLayer.resetStyle(l);
+      }
+    });
+  }
+
+  if (provinciaSel) {
+    const feat = provinciasGeo.features.find(f => f.properties.name === provinciaSel);
+    if (feat) map.fitBounds(L.geoJSON(feat).getBounds(), { padding: [60, 60], maxZoom: 10 });
+  }
+  localStorage.setItem('provinciaSel', JSON.stringify(provinciaSel));
+  refreshMarkers();
+}
+
+// Dibuja los límites de provincias (vista Nacional), sin clics que filtren
+function buildProvinciasLayer() {
+  if (!provinciasGeo || provinciasLayer) return;
+  const hasHover = window.matchMedia('(hover: hover)').matches;
+  const line = resolveColor('var(--prov-line)');
+  const hover = resolveColor('var(--prov-line-hover)');
+  const fill = resolveColor('var(--prov-fill)');
+
+  provinciasLayer = L.geoJSON(provinciasGeo, {
+    style: () => ({
+      color: line,
+      weight: 1.8,
+      opacity: 0.85,
+      fillColor: fill,
+      fillOpacity: 0.05,
+      interactive: hasHover
+    }),
+    onEachFeature: (feature, layer) => {
+      const name = feature.properties.name;
+      if (!hasHover) return;
+      layer.on({
+        mouseover: () => {
+          layer.setStyle({ weight: 2.8, fillOpacity: 0.18, color: hover });
+          layer.bringToFront();
+        },
+        mouseout: () => {
+          if (name === provinciaSel) {
+            layer.setStyle({
+              weight: 3.4,
+              color: resolveColor('var(--prov-line-active)'),
+              fillColor: resolveColor('var(--prov-fill-active)'),
+              fillOpacity: 0.22
+            });
+            layer.bringToFront();
+          } else {
+            provinciasLayer.resetStyle(layer);
+          }
+        }
+      });
+      if (window.matchMedia('(hover: hover)').matches) {
+        layer.bindTooltip(name, { direction: 'center', className: 'parr-tip' });
+      }
+    }
+  });
+  provinciasLayer.addTo(map);
+}
+
+/* ================================================================
+   CAMBIO DE VISTA (Quito ↔ Ecuador)
+   ================================================================ */
+function setView(v) {
+  view = v === 'nacional' ? 'nacional' : 'quito';
+  localStorage.setItem('view', JSON.stringify(view));
+
+  // Botones del selector
+  document.querySelectorAll('.view-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === view);
+  });
+
+  // Subtítulo según vista
+  const sub = document.getElementById('view-subtitle');
+  if (sub) sub.textContent = view === 'nacional' ? 'Mapa de campo · Ecuador' : 'Mapa de campo · Quito';
+
+  // Separar el filtro de zona según la vista
+  const secPar = document.getElementById('sec-parroquia');
+  const secProv = document.getElementById('sec-provincia');
+  if (secPar) secPar.hidden = view === 'nacional';
+  if (secProv) secProv.hidden = view !== 'nacional';
+
+  // Mostrar/ocultar capas según vista
+  Object.values(LAYER_DEFS).forEach(layer => {
+    if (!layer.cluster) return;
+    if (isLayerActive(layer)) {
+      if (!map.hasLayer(layer.cluster)) map.addLayer(layer.cluster);
+    } else if (map.hasLayer(layer.cluster)) {
+      map.removeLayer(layer.cluster);
+    }
+  });
+
+  // Límites de provincias solo en la vista nacional
+  if (provinciasLayer) {
+    if (view === 'nacional') { if (!map.hasLayer(provinciasLayer)) map.addLayer(provinciasLayer); }
+    else if (map.hasLayer(provinciasLayer)) map.removeLayer(provinciasLayer);
+  }
+
+  // Sectores de referencia solo aplican en Quito (parroquias)
+  if (sectorLayer) {
+    if (view === 'nacional') { if (map.hasLayer(sectorLayer)) map.removeLayer(sectorLayer); }
+    else if (sectorsOn && !map.hasLayer(sectorLayer)) map.addLayer(sectorLayer);
+  }
+
+  // Rebobinar la cámara al cambiar de vista
+  map.setMinZoom(view === 'nacional' ? 6 : 9);
+  if (view === 'nacional' && provinciasGeo) {
+    map.fitBounds(L.geoJSON(provinciasGeo).getBounds(), { padding: [20, 20] });
+  } else if (view === 'quito') {
+    map.setView([-0.19, -78.49], 12);
+  }
+
+  buildChips();
+  refreshMarkers();
+  const tot = document.getElementById('stats-total-num');
+  if (tot) tot.textContent = totalActive().toLocaleString('es-EC');
+  setTimeout(() => map.invalidateSize(), 350);
+}
+
+function initViewSwitch() {
+  document.querySelectorAll('.view-btn').forEach(btn => {
+    btn.addEventListener('click', () => setView(btn.dataset.view));
+  });
 }
 
 function shapeIconHtml(shape, hex, size = 12) {
@@ -433,12 +641,14 @@ function initMap() {
 async function loadData() {
   const loadingEl = document.getElementById('loading');
   try {
-    const [espacios, infra, atractivos, parroquiasPromise, sectors] = await Promise.all([
+    const [espacios, infra, atractivos, parroquiasPromise, sectors, nacionalGeo, provinciasGeoFile] = await Promise.all([
       fetch(DATA_FILES.espacios).then(r => r.json()),
       fetch(DATA_FILES.infra).then(r => r.json()),
       fetch(DATA_FILES.atractivos).then(r => r.json()),
       loadParroquias(),
-      loadSectors()
+      loadSectors(),
+      fetch(DATA_FILES.nacional).then(r => r.json()),
+      fetch(PROVINCIAS_FILE).then(r => r.json())
     ]);
 
     // Función para procesar un FeatureCollection y extraer puntos
@@ -454,13 +664,16 @@ async function loadData() {
         // Si falta nombre o tipo, o el tipo no está en las categorías definidas, lo saltamos
         if (!nombre || !tipo || !layerDef.cats[tipo]) return;
         const coords = feature.geometry.coordinates;
-        points.push({
+        const p = {
           nombre: nombre,
           tipo: tipo,
           lat: coords[1],
           lon: coords[0],
           layer: layerKey
-        });
+        };
+        if (layerDef.propProvincia && props[layerDef.propProvincia]) p.provincia = props[layerDef.propProvincia];
+        if (layerDef.propCanton && props[layerDef.propCanton]) p.canton = props[layerDef.propCanton];
+        points.push(p);
       });
       return points;
     }
@@ -469,6 +682,8 @@ async function loadData() {
     LAYER_DEFS.espacios.points = processGeoJSON(espacios, 'espacios');
     LAYER_DEFS.infra.points = processGeoJSON(infra, 'infra');
     LAYER_DEFS.atractivos.points = processGeoJSON(atractivos, 'atractivos');
+    LAYER_DEFS.nacional.points = processGeoJSON(nacionalGeo, 'nacional');
+    provinciasGeo = provinciasGeoFile;
 
     // Calcular conteos y asignar colores hex
     Object.values(LAYER_DEFS).forEach(layer => {
@@ -497,10 +712,11 @@ async function loadData() {
       allPoints = allPoints.concat(layer.points);
     });
 
-    // Asignar parroquia a cada punto y preparar filtro y capa de límites
+    // Asignar parroquia a cada punto y preparar filtros y capas de límites
     assignParroquias();
     buildParroquiaLayer();
-    buildParroquiaSelect();
+    buildProvinciasLayer();
+    buildZoneSelects();
 
     // Inicializar estado de categorías
     Object.keys(LAYER_DEFS).forEach(key => {
@@ -516,7 +732,7 @@ async function loadData() {
     createMarkers();
 
     // Actualizar estadísticas
-    document.getElementById('stats-total-num').textContent = allPoints.length.toLocaleString('es-EC');
+    document.getElementById('stats-total-num').textContent = totalActive().toLocaleString('es-EC');
     updateVisibleCount();
 
     // Restaurar estado desde localStorage
@@ -544,28 +760,31 @@ async function loadData() {
 /* ================================================================
    CONSTRUCCIÓN DE CHIPS DE CATEGORÍAS (filtro plano)
    ================================================================ */
-// Conteo de una categoría según la parroquia activa (o global si no hay filtro)
+// Conteo de una categoría según la zona activa (parroquia en Quito, provincia en Ecuador)
 function chipCount(layer, tipo) {
-  if (!parroquiaSel) return layer.cats[tipo].count;
+  const zoneSel = layer.key === 'nacional' ? provinciaSel : parroquiaSel;
+  if (!zoneSel) return layer.cats[tipo].count;
   let n = 0;
   layer.points.forEach(p => {
-    if (p.tipo === tipo && (p.parroquia || '__sin__') === parroquiaSel) n++;
+    const z = layer.key === 'nacional' ? (p.provincia || '__sin__') : (p.parroquia || '__sin__');
+    if (p.tipo === tipo && z === zoneSel) n++;
   });
   return n;
 }
 
-// Construye/actualiza los chips; si hay una parroquia activa, solo muestra
+// Construye/actualiza los chips; si hay una zona activa, solo muestra
 // las categorías con sitios en ella (con su conteo local)
 function buildChips() {
   const root = document.getElementById('cats-root');
   root.innerHTML = '';
 
-  Object.values(LAYER_DEFS).forEach(layer => {
+  activeLayers().forEach(layer => {
     Object.entries(layer.cats)
       .sort((a, b) => b[1].count - a[1].count)
       .forEach(([tipo, meta]) => {
         const local = chipCount(layer, tipo);
-        if (parroquiaSel && local === 0) return; // ocultar si no hay sitios en la parroquia
+        const zoneSel = layer.key === 'nacional' ? provinciaSel : parroquiaSel;
+        if (zoneSel && local === 0) return; // ocultar si no hay sitios en la zona
         const sk = layer.key + '::' + tipo;
         const chip = document.createElement('button');
         chip.type = 'button';
@@ -649,6 +868,7 @@ function createMarkers() {
             <div class="pop-cat">${shapeIconHtml(layer.shape, meta.hex, 9)} ${meta.label}</div>
             <div class="pop-name">${escapeHtml(p.nombre)}</div>
             ${p.parroquia ? `<div class="pop-parr">📍 ${escapeHtml(p.parroquia)}</div>` : ''}
+            ${p.provincia ? `<div class="pop-parr">🗺️ ${escapeHtml(p.provincia)}</div>` : ''}
             <div class="pop-coords">${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}</div>
             <div class="pop-dist" data-lat="${p.lat}" data-lon="${p.lon}"></div>
             <div class="pop-link-row">
@@ -664,7 +884,7 @@ function createMarkers() {
       keyIndex.set(doneKey(p), item);
     });
 
-    map.addLayer(layer.cluster);
+    if (isLayerActive(layer)) map.addLayer(layer.cluster);
   });
 }
 
@@ -688,7 +908,8 @@ function makeClusterIconFn(layerKey) {
   const hex = {
     espacios: resolveColor('var(--gold)'),
     infra: resolveColor('var(--c-inf-lit)'),
-    atractivos: resolveColor('var(--c-atr-cult)')
+    atractivos: resolveColor('var(--c-atr-cult)'),
+    nacional: resolveColor('var(--c-escenico)')
   }[layerKey] || '#C9A227';
 
   return function(cluster) {
@@ -789,12 +1010,12 @@ function updateSectorLabels(zoom) {
    REFRESCAR MARCADORES (aplicar filtros)
    ================================================================ */
 function refreshMarkers() {
-  Object.values(LAYER_DEFS).forEach(layer => {
+  activeLayers().forEach(layer => {
     const toAdd = [];
     const toRemove = [];
     markerIndex.forEach(item => {
       if (item.layer !== layer) return;
-      const visible = categoryState[layer.key + '::' + item.p.tipo] && passesParroquiaFilter(item.p) && passesPendingFilter(item.p);
+      const visible = categoryState[layer.key + '::' + item.p.tipo] && passesZoneFilter(item.p) && passesPendingFilter(item.p);
       if (visible && !item.visible) toAdd.push(item.marker);
       else if (!visible && item.visible) toRemove.push(item.marker);
       item.visible = visible;
@@ -813,9 +1034,10 @@ function updateLabels() {
   const zoom = map.getZoom();
   const bounds = map.getBounds(); // solo etiquetar lo que está en pantalla
   markerIndex.forEach(item => {
+    if (!isLayerActive(item.layer)) return;
     const sk = item.layer.key + '::' + item.p.tipo;
     const meta = item.layer.cats[item.p.tipo];
-    const active = categoryState[sk] && passesParroquiaFilter(item.p) && passesPendingFilter(item.p);
+    const active = categoryState[sk] && passesZoneFilter(item.p) && passesPendingFilter(item.p);
     // Si el marcador está agrupado en un clúster o fuera de pantalla no se ve:
     // no gastar recursos en su etiqueta (se arma al desagruparse / al mover)
     const clustered = item.marker._parent && item.marker._parent !== item.layer.cluster;
@@ -843,8 +1065,9 @@ function updateLabels() {
 function updateVisibleCount() {
   let visible = 0;
   markerIndex.forEach(item => {
+    if (!isLayerActive(item.layer)) return;
     const sk = item.layer.key + '::' + item.p.tipo;
-    if (categoryState[sk] && passesParroquiaFilter(item.p) && passesPendingFilter(item.p)) visible++;
+    if (categoryState[sk] && passesZoneFilter(item.p) && passesPendingFilter(item.p)) visible++;
   });
   document.getElementById('stats-visible').textContent = visible.toLocaleString('es-EC');
 }
@@ -888,7 +1111,7 @@ function syncDoneBtn(btn, p) {
 
 // Barra de progreso del panel
 function updateProgress() {
-  const total = allPoints.length;
+  const total = totalActive();
   const done = Object.keys(donePlaces).length;
   const pct = total ? Math.round((done / total) * 100) : 0;
   const fill = document.getElementById('progress-fill');
@@ -932,6 +1155,17 @@ function restoreState() {
       }
     }
   });
+
+  // Restaurar vista (Quito / Ecuador) y provincia
+  const viewSaved = localStorage.getItem('view');
+  if (viewSaved !== null && JSON.parse(viewSaved) === 'nacional') {
+    setView('nacional');
+  }
+  const provSaved = localStorage.getItem('provinciaSel');
+  if (provSaved !== null) {
+    provinciaSel = JSON.parse(provSaved);
+    if (provinciaSel) setProvincia(provinciaSel);
+  }
 
   // Restaurar parroquia seleccionada
   const parrSaved = localStorage.getItem('parroquiaSel');
@@ -1184,5 +1418,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initSectors();
   initTour();
   initProgressUI();
+  initViewSwitch();
   loadData(); // carga asíncrona y construye el resto
 });
