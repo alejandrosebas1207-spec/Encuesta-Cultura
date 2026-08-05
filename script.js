@@ -67,7 +67,7 @@ let allPoints = [];
 let markerIndex = [];
 let categoryState = {};      // clave: "layerKey::tipo" -> boolean
 let labelsOn = false;
-let map, googleSat;
+let map, baseSat, satRoads, satLabels;
 
 // Parroquias: geometrías para dibujar y estado del filtro
 let parroquiasGeo = null;       // FeatureCollection de parroquias (para dibujar)
@@ -310,16 +310,28 @@ function initMap() {
     if (el) el.textContent = 'lat —, lon —';
   });
 
-  // Mapa base: satélite híbrido de Google (imagen + calles y nombres superpuestos).
-  // Nota: usa el endpoint público de tiles de Google (mt*.google.com), que funciona
-  // desde navegadores pero no está garantizado si Google cambia su acceso.
-  googleSat = L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-    attribution: 'Imagery &copy; Google',
-    maxZoom: 22,
-    maxNativeZoom: 21
+  // Mapa base: imagen satelital de Esri + capas de calles y nombres
+  baseSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri',
+    maxZoom: 20,
+    maxNativeZoom: 19
   });
-  googleSat.addTo(map);
+  // Esri publica capas de "Reference" hechas para superponerse sobre World_Imagery,
+  // con halo blanco y buen contraste: una de vías y otra de límites/nombres de lugares.
+  satRoads = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 20,
+    maxNativeZoom: 19,
+    className: 'sat-reference-layer'
+  });
+  satLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 20,
+    maxNativeZoom: 19,
+    attribution: 'Tiles &copy; Esri',
+    className: 'sat-reference-layer'
+  });
+  baseSat.addTo(map);
+  satRoads.addTo(map);
+  satLabels.addTo(map);
 
   // Geolocalización
   document.getElementById('locate-btn').addEventListener('click', () => {
