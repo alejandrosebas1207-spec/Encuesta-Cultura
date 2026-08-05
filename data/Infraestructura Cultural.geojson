@@ -1,0 +1,27 @@
+{
+"type": "FeatureCollection",
+"name": "Infraestructura Cultural",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "sitios": "Cumanda Parque Urbano", "tipologia": "Cultura Comunitaria" }, "geometry": { "type": "Point", "coordinates": [ -78.51147, -0.22826 ] } },
+{ "type": "Feature", "properties": { "sitios": "Secretaria General", "tipologia": "Secretaria" }, "geometry": { "type": "Point", "coordinates": [ -78.5115, -0.22032 ] } },
+{ "type": "Feature", "properties": { "sitios": "Fundación Teatro Nacional Sucre", "tipologia": "Arte Viva" }, "geometry": { "type": "Point", "coordinates": [ -78.50886, -0.21917 ] } },
+{ "type": "Feature", "properties": { "sitios": "Fundación Museos de la Ciudad", "tipologia": "Artes Visuales" }, "geometry": { "type": "Point", "coordinates": [ -78.51501, -0.22282 ] } },
+{ "type": "Feature", "properties": { "sitios": "Centro Cultural Itchimbia", "tipologia": "Arte Viva" }, "geometry": { "type": "Point", "coordinates": [ -78.50177, -0.22009 ] } },
+{ "type": "Feature", "properties": { "sitios": "Teatro Capitol", "tipologia": "Artes Audiovisuales" }, "geometry": { "type": "Point", "coordinates": [ -78.50159, -0.21552 ] } },
+{ "type": "Feature", "properties": { "sitios": "Biblioteca Municipal El Ejido", "tipologia": "Artes Literarias" }, "geometry": { "type": "Point", "coordinates": [ -78.49737, -0.20955 ] } },
+{ "type": "Feature", "properties": { "sitios": "Biblioteca Municipal Federico Gonzáles Suárez", "tipologia": "Artes Literarias" }, "geometry": { "type": "Point", "coordinates": [ -78.51349, -0.22045 ] } },
+{ "type": "Feature", "properties": { "sitios": "Biblioteca Municipal de Calderón", "tipologia": "Artes Literarias" }, "geometry": { "type": "Point", "coordinates": [ -78.42138, -0.10041 ] } },
+{ "type": "Feature", "properties": { "sitios": "Biblioteca Municipal de Llano Grande", "tipologia": "Artes Literarias" }, "geometry": { "type": "Point", "coordinates": [ -78.43234, -0.11888 ] } },
+{ "type": "Feature", "properties": { "sitios": "Biblioteca Municipal de San Marcos", "tipologia": "Artes Literarias" }, "geometry": { "type": "Point", "coordinates": [ -78.50873, -0.22499 ] } },
+{ "type": "Feature", "properties": { "sitios": "Biblioteca Municipal de Tumbaco 2- Juan Montalvo", "tipologia": "Artes Literarias" }, "geometry": { "type": "Point", "coordinates": [ -78.40508, -0.21217 ] } },
+{ "type": "Feature", "properties": { "sitios": "Centro Benjamín Carrión", "tipologia": "Artes Literarias" }, "geometry": { "type": "Point", "coordinates": [ -78.49796, -0.20513 ] } },
+{ "type": "Feature", "properties": { "sitios": "Museografía Fundación Museos de la Ciudad", "tipologia": "Artes Visuales" }, "geometry": { "type": "Point", "coordinates": [ -78.4834, -0.16996 ] } },
+{ "type": "Feature", "properties": { "sitios": "Plaza de Toros Belmonte", "tipologia": "Arte Viva" }, "geometry": { "type": "Point", "coordinates": [ -78.52495, -0.22985 ] } },
+{ "type": "Feature", "properties": { "sitios": "Casa de las Bandas", "tipologia": "Artes Musicales" }, "geometry": { "type": "Point", "coordinates": [ -78.50374, -0.22228 ] } },
+{ "type": "Feature", "properties": { "sitios": "Casa de las Artes la Ronda", "tipologia": "Artes Visuales" }, "geometry": { "type": "Point", "coordinates": [ -78.51465, -0.22403 ] } },
+{ "type": "Feature", "properties": { "sitios": "Centro Cultural Metropolitano", "tipologia": "Artes Visuales" }, "geometry": { "type": "Point", "coordinates": [ -78.513271, -0.220344 ] } },
+{ "type": "Feature", "properties": { "sitios": "Centro Cultural Mama Cuchara", "tipologia": "Artes Visuales" }, "geometry": { "type": "Point", "coordinates": [ -78.50862, -0.22878 ] } },
+{ "type": "Feature", "properties": { "sitios": "Centro Benjamín Carrión Bellavista", "tipologia": "Artes Literarias" }, "geometry": { "type": "Point", "coordinates": [ -78.47877, -0.18704 ] } }
+]
+}

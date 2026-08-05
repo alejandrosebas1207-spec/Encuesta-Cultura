@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Mapa de Espacios Culturales · Quito</title>
+  <!-- Leaflet y MarkerCluster -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <!-- Fuentes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Estilos propios -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Sidebar -->
+    <aside id="sidebar">
+      <div class="brand">
+        <svg class="rosette" viewBox="0 0 40 40" fill="none">
+          <!-- ... (mismo SVG que antes) ... -->
+        </svg>
+        <div>
+          <h1>Espacios Culturales</h1>
+          <div class="sub">Mapa de campo · Quito</div>
+        </div>
+      </div>
+      <div class="sb-scroll">
+        <!-- Búsqueda -->
+        <div class="sec">
+          <p class="sec-title">Buscar</p>
+          <div class="search-wrap">
+            <input id="search" type="text" placeholder="Nombre del sitio…" autocomplete="off">
+            <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <div id="search-results"></div>
+          </div>
+        </div>
+
+        <!-- Capas y categorías (se llenan con JS) -->
+        <div class="sec">
+          <p class="sec-title">Capas y categorías</p>
+          <div id="layers-root"></div>
+        </div>
+
+        <!-- Etiquetas -->
+        <div class="sec">
+          <p class="sec-title">Etiquetas</p>
+          <div class="label-toggle-row">
+            <div class="layer-name">Mostrar nombres en el mapa</div>
+            <label class="switch">
+              <input type="checkbox" id="toggle-labels">
+              <span class="switch-track"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Mapa base -->
+        <div class="sec">
+          <p class="sec-title">Mapa base</p>
+          <div class="base-options">
+            <div class="base-opt active" data-base="light">Calles</div>
+            <div class="base-opt" data-base="sat">Satélite + calles</div>
+          </div>
+          <p class="base-hint">Ambos modos muestran nombres de calles y barrios.</p>
+        </div>
+
+        <!-- Geolocalización -->
+        <div class="sec">
+          <button id="locate-btn" class="btn-primary">📍 Mi ubicación</button>
+        </div>
+      </div>
+
+      <!-- Estadísticas -->
+      <div class="stats-bar">
+        <div>
+          <div class="stats-num" id="stats-visible">0</div>
+          <div class="stats-label">sitios visibles</div>
+        </div>
+        <div class="stats-total">de un total de<br><b id="stats-total-num">0</b> registrados</div>
+      </div>
+    </aside>
+
+    <!-- Botón colapsar sidebar -->
+    <button id="sb-toggle" title="Mostrar/ocultar panel">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+
+    <!-- Mapa -->
+    <div id="map"></div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
