@@ -71,6 +71,19 @@ let labelsOn = true; // etiquetas visibles por defecto (es un mapa de campo: los
 let map, baseProviders, baseLayer = null, baseTheme = 'light', baseIdx = 0, baseFails = 0, baseFailTimer = null;
 let userLoc = null; // última ubicación conocida del encuestador
 
+// ---- Registro de avance de campo ----
+let donePlaces = {};   // clave de punto -> ISO de cuándo se marcó encuestado
+let onlyPending = false;
+let touchMode = false; // pines más grandes en pantallas táctiles
+let keyIndex = new Map(); // clave -> item (para toggles y exportar CSV)
+
+// Clave única del punto (nombre normalizado + coordenadas + capa)
+function doneKey(p) {
+  return p.layer + '::' + p.tipo + '::' + normalizeName(p.nombre) + '::' + p.lat.toFixed(4) + ',' + p.lon.toFixed(4);
+}
+function isDone(p) { return !!donePlaces[doneKey(p)]; }
+function passesPendingFilter(p) { return !onlyPending || !isDone(p); }
+
 // Distancia en km entre dos coordenadas (fórmula de Haversine)
 function distKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -391,6 +404,17 @@ function initMap() {
         }
       });
     });
+
+    // Botón "✓ Marcar encuestado" del popup
+    const doneBtn = document.querySelector('.leaflet-popup .pop-done');
+    if (doneBtn) {
+      const key = doneBtn.dataset.dk;
+      syncDoneBtn(doneBtn, keyIndex.get(key)?.p);
+      if (!doneBtn.dataset.bound) {
+        doneBtn.dataset.bound = '1';
+        doneBtn.addEventListener('click', () => toggleDone(key));
+      }
+    }
   });
 
   // Al hacer zoom o mover el mapa, actualizar etiquetas (con debounce:
@@ -615,21 +639,12 @@ function createMarkers() {
 
     // Crear marcadores (popups a demanda: bindear 400+ popups al inicio
     // hace lenta la carga en móviles; se arma solo al tocar el punto)
-    const isTouch = window.matchMedia('(pointer: coarse)').matches;
+    touchMode = window.matchMedia('(pointer: coarse)').matches;
+    try { donePlaces = JSON.parse(localStorage.getItem('donePlaces') || '{}'); } catch (e) { donePlaces = {}; }
     layer.points.forEach(p => {
       const meta = layer.cats[p.tipo];
       if (!meta) return; // seguridad
-      const shape = layer.shape;
-      const size = shape === 'pin' ? (isTouch ? 34 : 24) : (isTouch ? 26 : 16);
-      const icon = L.divIcon({
-        html: `<div class="mk-wrap mk-${shape}" style="--mk-color:${meta.hex}">
-          <span class="mk-shape"></span>
-        </div>`,
-        className: '',
-        iconSize: [size, size],
-        iconAnchor: [size / 2, shape === 'pin' ? size : size / 2]
-      });
-      const marker = L.marker([p.lat, p.lon], { icon });
+      const marker = L.marker([p.lat, p.lon], { icon: makePointIcon(layer, p) });
       marker.on('click', () => {
         if (!marker.isPopupOpen()) {
           marker.bindPopup(`
@@ -643,13 +658,31 @@ function createMarkers() {
               <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}" target="_blank" rel="noopener" class="pop-link">🧭 Cómo llegar →</a>
               <button class="pop-copy" data-copy="${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}">Copiar coords</button>
             </div>
+            <button class="pop-done" data-dk="${doneKey(p)}">✓ Marcar encuestado</button>
           `, { closeButton: true, maxWidth: 260 }).openPopup();
         }
       });
-      markerIndex.push({ p, marker, layer, tooltipOpen: false, visible: false });
+      const item = { p, marker, layer, tooltipOpen: false, visible: false };
+      markerIndex.push(item);
+      keyIndex.set(doneKey(p), item);
     });
 
     map.addLayer(layer.cluster);
+  });
+}
+
+// Icono de un punto (se reutiliza al marcar encuestado: un solo setIcon, costo mínimo)
+function makePointIcon(layer, p) {
+  const meta = layer.cats[p.tipo];
+  const shape = layer.shape;
+  const size = shape === 'pin' ? (touchMode ? 34 : 24) : (touchMode ? 26 : 16);
+  return L.divIcon({
+    html: `<div class="mk-wrap mk-${shape}" style="--mk-color:${meta.hex}">` +
+      (isDone(p) ? '<span class="mk-done">✓</span>' : '') +
+      `<span class="mk-shape"></span></div>`,
+    className: '',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, shape === 'pin' ? size : size / 2]
   });
 }
 
@@ -764,7 +797,7 @@ function refreshMarkers() {
     const toRemove = [];
     markerIndex.forEach(item => {
       if (item.layer !== layer) return;
-      const visible = categoryState[layer.key + '::' + item.p.tipo] && passesParroquiaFilter(item.p);
+      const visible = categoryState[layer.key + '::' + item.p.tipo] && passesParroquiaFilter(item.p) && passesPendingFilter(item.p);
       if (visible && !item.visible) toAdd.push(item.marker);
       else if (!visible && item.visible) toRemove.push(item.marker);
       item.visible = visible;
@@ -785,7 +818,7 @@ function updateLabels() {
   markerIndex.forEach(item => {
     const sk = item.layer.key + '::' + item.p.tipo;
     const meta = item.layer.cats[item.p.tipo];
-    const active = categoryState[sk] && passesParroquiaFilter(item.p);
+    const active = categoryState[sk] && passesParroquiaFilter(item.p) && passesPendingFilter(item.p);
     // Si el marcador está agrupado en un clúster o fuera de pantalla no se ve:
     // no gastar recursos en su etiqueta (se arma al desagruparse / al mover)
     const clustered = item.marker._parent && item.marker._parent !== item.layer.cluster;
@@ -814,9 +847,101 @@ function updateVisibleCount() {
   let visible = 0;
   markerIndex.forEach(item => {
     const sk = item.layer.key + '::' + item.p.tipo;
-    if (categoryState[sk] && passesParroquiaFilter(item.p)) visible++;
+    if (categoryState[sk] && passesParroquiaFilter(item.p) && passesPendingFilter(item.p)) visible++;
   });
   document.getElementById('stats-visible').textContent = visible.toLocaleString('es-EC');
+}
+
+/* ================================================================
+   REGISTRO DE AVANCE DE CAMPO
+   ================================================================ */
+// Marca/desmarca un punto como encuestado y guarda todo en localStorage
+function toggleDone(key) {
+  const item = keyIndex.get(key);
+  if (!item) return;
+  if (donePlaces[key]) delete donePlaces[key];
+  else donePlaces[key] = new Date().toISOString();
+  try { localStorage.setItem('donePlaces', JSON.stringify(donePlaces)); } catch (e) {}
+  // Badge ✓ en el marcador (un solo setIcon, costo mínimo)
+  item.marker.setIcon(makePointIcon(item.layer, item.p));
+  updateProgress();
+  if (onlyPending) refreshMarkers();
+  const btn = document.querySelector('.leaflet-popup .pop-done');
+  if (btn && btn.dataset.dk === key) syncDoneBtn(btn, item.p);
+}
+
+function syncDoneBtn(btn, p) {
+  if (!btn || !p) return;
+  if (isDone(p)) {
+    btn.classList.add('done');
+    btn.textContent = '✓ Encuestado · desmarcar';
+  } else {
+    btn.classList.remove('done');
+    btn.textContent = '✓ Marcar encuestado';
+  }
+}
+
+// Barra de progreso del panel
+function updateProgress() {
+  const total = allPoints.length;
+  const done = Object.keys(donePlaces).length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  const fill = document.getElementById('progress-fill');
+  const text = document.getElementById('progress-text');
+  const track = document.getElementById('progress-track');
+  if (fill) fill.style.width = pct + '%';
+  if (text) text.textContent = `${done} de ${total} encuestados`;
+  if (track) {
+    track.setAttribute('aria-valuenow', String(done));
+    track.setAttribute('aria-valuemax', String(total));
+    track.setAttribute('aria-valuetext', pct + '%');
+  }
+}
+
+// Exporta lo encuestado a CSV (compatible con Excel en español)
+function exportCSV() {
+  const rows = [['Capa', 'Categoría', 'Nombre', 'Parroquia', 'Latitud', 'Longitud', 'Fecha']];
+  Object.keys(donePlaces).forEach(key => {
+    const item = keyIndex.get(key);
+    if (!item) return;
+    const p = item.p;
+    const layer = item.layer;
+    const cat = (layer.cats[p.tipo] && layer.cats[p.tipo].label) || p.tipo;
+    rows.push([
+      layer.title,
+      cat,
+      `"${String(p.nombre).replace(/"/g, '""')}"`,
+      p.parroquia || '',
+      p.lat.toFixed(6).replace('.', ','),
+      p.lon.toFixed(6).replace('.', ','),
+      donePlaces[key].slice(0, 10)
+    ]);
+  });
+  if (rows.length === 1) { alert('Aún no has marcado ningún punto como encuestado.'); return; }
+  const csv = '\uFEFF' + rows.map(r => r.join(';')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'encuestas_' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+
+function initProgressUI() {
+  const pendBtn = document.getElementById('pending-toggle');
+  if (pendBtn) {
+    pendBtn.addEventListener('click', () => {
+      onlyPending = !onlyPending;
+      pendBtn.classList.toggle('active', onlyPending);
+      pendBtn.setAttribute('aria-pressed', String(onlyPending));
+      try { localStorage.setItem('onlyPending', JSON.stringify(onlyPending)); } catch (e) {}
+      refreshMarkers();
+    });
+  }
+  const exportBtn = document.getElementById('export-btn');
+  if (exportBtn) exportBtn.addEventListener('click', exportCSV);
 }
 
 /* ================================================================
@@ -861,6 +986,20 @@ function restoreState() {
     const sectorChk = document.getElementById('sector-toggle');
     if (sectorChk) sectorChk.checked = sectorsOn;
   }
+
+  // Restaurar "solo pendientes" del registro de avance
+  const pendSaved = localStorage.getItem('onlyPending');
+  if (pendSaved !== null) {
+    onlyPending = JSON.parse(pendSaved);
+    const pendBtn = document.getElementById('pending-toggle');
+    if (pendBtn) {
+      pendBtn.classList.toggle('active', onlyPending);
+      pendBtn.setAttribute('aria-pressed', String(onlyPending));
+    }
+  }
+
+  // Barra de avance
+  updateProgress();
 
   // Aplicar cambios a marcadores
   refreshMarkers();
@@ -1072,5 +1211,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   initSectors();
   initTour();
+  initProgressUI();
   loadData(); // carga asíncrona y construye el resto
 });
