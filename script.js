@@ -4,7 +4,8 @@
 const DATA_FILES = {
   espacios: 'data/Espacios_Culturales.geojson',
   infra: 'data/Infraestructura_Cultural.geojson',
-  atractivos: 'data/Atractivo_Turistico.geojson'
+  atractivos: 'data/Atractivo_Turistico.geojson',
+  referencias: 'data/referencias.geojson'
 };
 
 const PARROQUIAS_FILE = 'data/parroquias_dmq.geojson';
@@ -317,10 +318,11 @@ function initMap() {
     subdomains: 'abcd',
     maxZoom: 20
   });
-  baseDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  baseDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap &copy; CARTO',
     subdomains: 'abcd',
-    maxZoom: 20
+    maxZoom: 20,
+    className: 'dark-tiles'
   });
   baseSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Tiles &copy; Esri',
@@ -420,11 +422,12 @@ function initMap() {
 async function loadData() {
   const loadingEl = document.getElementById('loading');
   try {
-    const [espacios, infra, atractivos, parroquiasPromise] = await Promise.all([
+    const [espacios, infra, atractivos, parroquiasPromise, refs] = await Promise.all([
       fetch(DATA_FILES.espacios).then(r => r.json()),
       fetch(DATA_FILES.infra).then(r => r.json()),
       fetch(DATA_FILES.atractivos).then(r => r.json()),
-      loadParroquias()
+      loadParroquias(),
+      loadRefs()
     ]);
 
     // Función para procesar un FeatureCollection y extraer puntos
@@ -669,6 +672,60 @@ function makeClusterIconFn(layerKey) {
 }
 
 /* ================================================================
+   PUNTOS DE REFERENCIA (OSM) para orientación de encuestadores
+   ================================================================ */
+const REF_LABEL_ZOOM = 13; // desde este zoom se muestran los nombres
+let refsOn = true;
+let refLayer = null;
+let refItems = []; // { marker, name, tooltipOpen }
+
+async function loadRefs() {
+  try {
+    const data = await fetch(DATA_FILES.referencias).then(r => r.json());
+    refItems = [];
+    refLayer = L.geoJSON(data, {
+      pointToLayer: (feature, latlng) => {
+        const p = feature.properties || {};
+        const icon = L.divIcon({
+          html: '<span class="ref-dot"></span>',
+          className: 'ref-icon',
+          iconSize: [14, 14],
+          iconAnchor: [7, 7]
+        });
+        const marker = L.marker(latlng, { icon, keyboard: false });
+        marker.bindPopup(`
+          <div class="pop-eyebrow">Referencia</div>
+          <div class="pop-cat">${escapeHtml(p.cat || 'Lugar')}</div>
+          <div class="pop-name">${escapeHtml(p.n || '')}</div>
+          <div class="pop-coords">${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}</div>
+        `, { closeButton: true, maxWidth: 260 });
+        refItems.push({ marker, name: p.n || '', tooltipOpen: false });
+        return marker;
+      }
+    });
+    if (refsOn) refLayer.addTo(map);
+  } catch (e) {
+    console.warn('No se pudieron cargar los puntos de referencia:', e);
+  }
+}
+
+function setRefs(on) {
+  refsOn = on;
+  try { localStorage.setItem('refsOn', JSON.stringify(on)); } catch (e) {}
+  if (refLayer) {
+    if (on) refLayer.addTo(map);
+    else map.removeLayer(refLayer);
+  }
+}
+
+function initRefs() {
+  const chk = document.getElementById('ref-toggle');
+  if (!chk) return;
+  chk.checked = refsOn;
+  chk.addEventListener('change', () => setRefs(chk.checked));
+}
+
+/* ================================================================
    REFRESCAR MARCADORES (aplicar filtros)
    ================================================================ */
 function refreshMarkers() {
@@ -712,6 +769,25 @@ function updateLabels() {
       item.tooltipOpen = false;
     }
   });
+
+  // Etiquetas de los puntos de referencia (independientes de los filtros)
+  if (refItems.length) {
+    const showRef = zoom >= REF_LABEL_ZOOM;
+    refItems.forEach(item => {
+      if (showRef && !item.tooltipOpen) {
+        item.marker.bindTooltip(item.name, {
+          permanent: true,
+          direction: 'right',
+          offset: [8, 0],
+          className: 'ref-tip'
+        });
+        item.tooltipOpen = true;
+      } else if (!showRef && item.tooltipOpen) {
+        item.marker.unbindTooltip();
+        item.tooltipOpen = false;
+      }
+    });
+  }
 }
 
 /* ================================================================
@@ -757,6 +833,14 @@ function restoreState() {
     document.getElementById('toggle-labels').checked = labelsOn;
   } else {
     labelsOn = false;
+  }
+
+  // Restaurar puntos de referencia (por defecto activos)
+  const refsSaved = localStorage.getItem('refsOn');
+  if (refsSaved !== null) {
+    refsOn = JSON.parse(refsSaved);
+    const refChk = document.getElementById('ref-toggle');
+    if (refChk) refChk.checked = refsOn;
   }
 
   // Aplicar cambios a marcadores
@@ -929,5 +1013,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initSearch();
   initChipActions();
   initTheme();
+  initRefs();
   loadData(); // carga asíncrona y construye el resto
 });

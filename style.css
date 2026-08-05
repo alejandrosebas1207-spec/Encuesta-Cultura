@@ -181,6 +181,44 @@ body {
   font-family: 'Public Sans', sans-serif;
 }
 
+/* Tiles oscuras del mapa: subir brillo y contraste para que las letras
+   de calles y barrios se lean mejor sobre el fondo negro */
+html.dark .dark-tiles {
+  filter: brightness(1.28) contrast(1.1) saturate(1.05);
+}
+
+/* ========== PUNTOS DE REFERENCIA (OSM) ========== */
+.ref-icon {
+  background: none;
+  border: none;
+}
+.ref-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ref-dot, #6B7280);
+  border: 2px solid var(--ref-dot-ring, #FFFFFF);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+html.dark .ref-dot {
+  border-color: #2A2722;
+}
+.ref-tip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  font-weight: 600;
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--ink) !important;
+  text-shadow: 0 1px 2px var(--ref-halo, #FFFFFF), 0 0 4px var(--ref-halo, #FFFFFF);
+}
+html.dark .ref-tip {
+  color: #EFEDE6 !important;
+  text-shadow: 0 1px 2px #16140F, 0 0 4px #16140F;
+}
+
 /* ========== SIDEBAR ========== */
 #sidebar {
   width: 360px;
