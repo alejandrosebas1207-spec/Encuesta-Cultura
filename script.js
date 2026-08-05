@@ -687,6 +687,17 @@ function initSearch() {
             if (found) setTimeout(() => found.marker.openPopup(), 350);
             results.classList.remove('show');
             input.value = p.nombre;
+            // En móvil, cerrar la hoja inferior para que el mapa quede visible
+            if (window.innerWidth <= 760) {
+              const sidebar = document.getElementById('sidebar');
+              if (!sidebar.classList.contains('collapsed')) {
+                sidebar.classList.add('collapsed');
+                const btn = document.getElementById('sb-toggle');
+                if (btn) btn.setAttribute('aria-expanded', 'false');
+                document.getElementById('backdrop').classList.remove('show');
+                setTimeout(() => map.invalidateSize(), 340);
+              }
+            }
           });
           frag.appendChild(el);
         });
