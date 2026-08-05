@@ -75,7 +75,7 @@ let userLoc = null; // última ubicación conocida del encuestador
 let donePlaces = {};   // clave de punto -> ISO de cuándo se marcó encuestado
 let onlyPending = false;
 let touchMode = false; // pines más grandes en pantallas táctiles
-let keyIndex = new Map(); // clave -> item (para toggles y exportar CSV)
+let keyIndex = new Map(); // clave -> item (para toggles de encuestado)
 
 // Clave única del punto (nombre normalizado + coordenadas + capa)
 function doneKey(p) {
@@ -898,37 +898,6 @@ function updateProgress() {
   }
 }
 
-// Exporta lo encuestado a CSV (compatible con Excel en español)
-function exportCSV() {
-  const rows = [['Capa', 'Categoría', 'Nombre', 'Parroquia', 'Latitud', 'Longitud', 'Fecha']];
-  Object.keys(donePlaces).forEach(key => {
-    const item = keyIndex.get(key);
-    if (!item) return;
-    const p = item.p;
-    const layer = item.layer;
-    const cat = (layer.cats[p.tipo] && layer.cats[p.tipo].label) || p.tipo;
-    rows.push([
-      layer.title,
-      cat,
-      `"${String(p.nombre).replace(/"/g, '""')}"`,
-      p.parroquia || '',
-      p.lat.toFixed(6).replace('.', ','),
-      p.lon.toFixed(6).replace('.', ','),
-      donePlaces[key].slice(0, 10)
-    ]);
-  });
-  if (rows.length === 1) { alert('Aún no has marcado ningún punto como encuestado.'); return; }
-  const csv = '\uFEFF' + rows.map(r => r.join(';')).join('\r\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'encuestas_' + new Date().toISOString().slice(0, 10) + '.csv';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-}
-
 function initProgressUI() {
   const pendBtn = document.getElementById('pending-toggle');
   if (pendBtn) {
@@ -940,8 +909,6 @@ function initProgressUI() {
       refreshMarkers();
     });
   }
-  const exportBtn = document.getElementById('export-btn');
-  if (exportBtn) exportBtn.addEventListener('click', exportCSV);
 }
 
 /* ================================================================
