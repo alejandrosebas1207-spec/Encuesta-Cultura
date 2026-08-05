@@ -437,6 +437,11 @@ function setView(v) {
   if (secPar) secPar.hidden = view === 'nacional';
   if (secProv) secProv.hidden = view !== 'nacional';
 
+  // Ajustar minZoom ANTES de añadir clústeres: el grid interno del markercluster
+  // se genera en su primer addLayer según el minZoom actual del mapa (si baja
+  // después, addLayers revienta con gridClusters[zoom] undefined)
+  map.setMinZoom(view === 'nacional' ? 6 : 9);
+
   // Mostrar/ocultar capas según vista
   Object.values(LAYER_DEFS).forEach(layer => {
     if (!layer.cluster) return;
@@ -460,7 +465,6 @@ function setView(v) {
   }
 
   // Rebobinar la cámara al cambiar de vista
-  map.setMinZoom(view === 'nacional' ? 6 : 9);
   if (view === 'nacional' && provinciasGeo) {
     map.fitBounds(L.geoJSON(provinciasGeo).getBounds(), { padding: [20, 20] });
   } else if (view === 'quito') {
